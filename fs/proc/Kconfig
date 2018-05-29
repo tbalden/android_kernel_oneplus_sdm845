@@ -88,3 +88,9 @@ config PROC_UID
 	depends on PROC_FS && RT_MUTEXES
 	help
 	Provides aggregated per-uid information under /proc/uid.
+
+config STOCK_VERITY
+        bool "If using a stock system verity on the flashed phone can be Y"
+        default n
+        help
+          Hides VERIFIEDBOOTSTATE=ORANGE on cmdline if set.
