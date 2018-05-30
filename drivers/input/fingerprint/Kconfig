@@ -21,4 +21,11 @@ config FINGERPRINT_GOODIX
 	tristate "goodix fingerprint sensor support"
 	depends on SPI_MASTER
 
+config FPF_TS_PRESSURE
+       default n
+       tristate "Touchscreen input driver uses ABS_MT_PRESSURE"
+
+config FPF_KAD
+       default n
+       tristate "kernel ambient display enabled"
 endif
