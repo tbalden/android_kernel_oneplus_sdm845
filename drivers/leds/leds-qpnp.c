@@ -28,6 +28,10 @@
 #include <linux/regulator/consumer.h>
 #include <linux/delay.h>
 
+#if 1
+#include <linux/uci/uci.h>
+#endif
+
 #define WLED_MOD_EN_REG(base, n)	(base + 0x60 + n*0x10)
 #define WLED_IDAC_DLY_REG(base, n)	(WLED_MOD_EN_REG(base, n) + 0x01)
 #define WLED_FULL_SCALE_REG(base, n)	(WLED_IDAC_DLY_REG(base, n) + 0x01)
@@ -2650,6 +2654,15 @@ restore:
 	return ret;
 }
 
+#if 1
+static int get_rgb_pulse(void) {
+        return uci_get_user_property_int_mm("bln_rgb_pulse", 1, 0, 1);
+}
+//[00 05 0a 0f 14 1d 28 32 3c 4b 64]
+int no_pulse[11] = {0,0,0,0,0,0,0,0,255,0,0};
+int pulse[11] = {0,0x5,0xa,0xf,0x14,0x1d,0x28,0x32,0x3c,0x4b,0x64};
+#endif
+
 static void led_blink(struct qpnp_led_data *led,
 			struct pwm_config_data *pwm_cfg)
 {
@@ -2681,6 +2694,19 @@ static void led_blink(struct qpnp_led_data *led,
 		qpnp_pwm_init(pwm_cfg, led->pdev, led->cdev.name);
 		if (led->id == QPNP_ID_RGB_RED || led->id == QPNP_ID_RGB_GREEN
 				|| led->id == QPNP_ID_RGB_BLUE) {
+#if 1
+			if (get_rgb_pulse()) {
+				int i;
+		                for (i = 0; i < pwm_cfg->duty_cycles->num_duty_pcts; i++)
+	                	        pwm_cfg->duty_cycles->duty_pcts[i] =
+    		                	        (int) pulse[i];
+			} else {
+				int i;
+		                for (i = 0; i < pwm_cfg->duty_cycles->num_duty_pcts; i++)
+	                	        pwm_cfg->duty_cycles->duty_pcts[i] =
+    		                	        (int) no_pulse[i];
+			}
+#endif
 			rc = qpnp_rgb_set(led);
 			if (rc < 0)
 				dev_err(&led->pdev->dev,
