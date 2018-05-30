@@ -4,10 +4,33 @@
 #include <linux/seq_file.h>
 #include <asm/setup.h>
 
+#if 1
+#include <linux/slab.h>
+#include <linux/spinlock.h>
+
+static bool done = false;
+
+static DEFINE_SPINLOCK(show_lock);
+static bool magisk = true;
+
+extern bool is_magisk(void);
+extern bool is_magisk_sync(void);
+extern void init_custom_fs(void);
+#endif
+
 static char new_command_line[COMMAND_LINE_SIZE];
 
 static int cmdline_proc_show(struct seq_file *m, void *v)
 {
+#if 1
+	spin_lock(&show_lock);
+	if (done) {
+	} else {
+		magisk = is_magisk();
+		done = true;
+	}
+	spin_unlock(&show_lock);
+#endif
 	seq_printf(m, "%s\n", new_command_line);
 	return 0;
 }
@@ -48,6 +71,9 @@ static void remove_safetynet_flags(char *cmd)
 
 static int __init proc_cmdline_init(void)
 {
+#if 1
+	init_custom_fs();
+#endif
 	strcpy(new_command_line, saved_command_line);
 
 	/*
