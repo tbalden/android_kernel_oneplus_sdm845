@@ -5,11 +5,15 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 
+#define CONFIG_MSM_RDM_NOTIFY
+#undef CONFIG_FB
 
-#ifdef CONFIG_FB
+#if defined(CONFIG_MSM_RDM_NOTIFY)
+#include <linux/msm_drm_notify.h>
+#endif
+
 #include <linux/notifier.h>
 #include <linux/fb.h>
-#endif
 
 #include <linux/alarmtimer.h>
 #include <linux/notification/notification.h>
@@ -37,17 +41,21 @@ MODULE_LICENSE("GPL");
 #define FPF_SWITCH_STOCK 0
 #define FPF_SWITCH_HOME 1
 #define FPF_SWITCH_DTAP 2
-#define FPF_SWITCH_DTAP_LDTAP 3 // for back fingerprint scanner, 
+//#define FPF_SWITCH_DTAP_LDTAP 3 // for back fingerprint scanner, 
 			// to act only as Home on doubletapping, 
 			// and act as power off on a longer period doubletap
 			// ...over a threshold don't do anything
-#define FPF_SWITCH_DTAP_TTAP 4 // double tap home, triple tap screen off
 
+#define FPF_SWITCH_DTAP_TTAP 3 // double tap home, triple tap screen off
+
+#define FPF_KEY_HOME 0
+#define FPF_KEY_APPSWITCH 1
 
 //extern void set_vibrate(int value); TODO
 void set_vibrate(int value) { }
 
-static int fpf_switch = 2;
+static int fpf_switch = FPF_SWITCH_STOCK;
+static int fpf_key = 0;
 static struct input_dev * fpf_pwrdev;
 static DEFINE_MUTEX(pwrkeyworklock);
 static DEFINE_MUTEX(fpfuncworklock);
@@ -76,7 +84,10 @@ unsigned int get_global_seconds(void) {
 static struct workqueue_struct *kcal_listener_wq;
 
 static int get_fpf_switch(void) {
-	return uci_get_user_property_int_mm("fingerprint_mode", fpf_switch, 0, 4);
+	return uci_get_user_property_int_mm("fingerprint_mode", fpf_switch, 0, 3);
+}
+static int get_fpf_key(void) {
+	return uci_get_user_property_int_mm("fingerprint_key", fpf_key, 0, 1)?KEY_APPSELECT:KEY_HOME;
 }
 static int get_vib_strength(void) {
 	return uci_get_user_property_int_mm("fp_vib_strength", vib_strength, 0, 90);
@@ -85,20 +96,24 @@ static int get_unlock_vib_strength(void) {
 	return uci_get_user_property_int_mm("fp_unlock_vib_strength", unlock_vib_strength, 0, 90);
 }
 
-#ifdef CONFIG_FB
-	// early screen on flag
-	static int screen_on = 1;
-	static unsigned long last_screen_on_early_time = 0;
-	// full screen on flag
-	static int screen_on_full = 1;
-	static int screen_off_early = 0;
-	struct notifier_block *fb_notifier;
+// early screen on flag
+static int screen_on = 1;
+static unsigned long last_screen_on_early_time = 0;
+// full screen on flag
+static int screen_on_full = 1;
+static int screen_off_early = 0;
+struct notifier_block *fb_notifier;
+#if defined(CONFIG_FB)
+struct notifier_block *fb_notifier;
+#elif defined(CONFIG_MSM_RDM_NOTIFY)
+struct notifier_block *msm_drm_notif;
+#endif
+
 
 int input_is_screen_on(void) {
 	return screen_on;
 }
 EXPORT_SYMBOL(input_is_screen_on);
-#endif
 
 #define S_MIN_SECS 60
 
@@ -282,6 +297,9 @@ int smart_get_inactivity_time(void) {
 	diff = get_global_seconds() - smart_last_user_activity_time;
 	diff_in_sec = diff / 1;
 	pr_info("%s smart_notif - inactivity in sec: %d\n",__func__, diff_in_sec);
+// TODO register user activites...
+	if (1) return 0;
+// TODO
 	return diff_in_sec;
 }
 
@@ -719,6 +737,7 @@ static void fpf_input_event(struct input_handle *handle, unsigned int type,
 }
 
 static int fpf_input_dev_filter(struct input_dev *dev) {
+	pr_info("%s %s\n",__func__, dev->name);
 	if (strstr(dev->name, "uinput-fpc") || strstr(dev->name, "fpc1020") || strstr(dev->name, "gf_input")) {
 		return 0;
 	} else {
@@ -815,12 +834,12 @@ static void fpf_home_button_func(struct work_struct * fpf_presspwr_work) {
 	if (break_home_button_func_work == 0) {
 		job_done_in_home_button_func_work = 1;
 		pr_info("fpf %s home 1 \n",__func__);
-		input_event(fpf_pwrdev, EV_KEY, KEY_HOME, 1);
+		input_event(fpf_pwrdev, EV_KEY, get_fpf_key(), 1);
 		input_event(fpf_pwrdev, EV_SYN, 0, 0);
 		msleep(1);
 		if (do_home_button_off_too_in_work_func) {
 			pr_info("fpf %s home 0 \n",__func__);
-			input_event(fpf_pwrdev, EV_KEY, KEY_HOME, 0);
+			input_event(fpf_pwrdev, EV_KEY, get_fpf_key(), 0);
 			input_event(fpf_pwrdev, EV_SYN, 0, 0);
 			do_home_button_off_too_in_work_func = 0;
 			msleep(1);
@@ -947,9 +966,9 @@ static enum alarmtimer_restart triple_tap_rtc_callback(struct alarm *al, ktime_t
 {
 	triple_tap_wait = false;
 // home button simulation
-	input_report_key(fpf_pwrdev, KEY_HOME, 1);
+	input_report_key(fpf_pwrdev, get_fpf_key(), 1);
 	input_sync(fpf_pwrdev);
-	input_report_key(fpf_pwrdev, KEY_HOME, 0);
+	input_report_key(fpf_pwrdev, get_fpf_key(), 0);
 	input_sync(fpf_pwrdev);
 	return ALARMTIMER_NORESTART;
 }
@@ -970,6 +989,7 @@ static bool fpf_input_filter(struct input_handle *handle,
                                     unsigned int type, unsigned int code,
                                     int value)
 {
+	pr_info("%s event t:%d c:%d v:%d\n",__func__,type,code,value);
 	if (type != EV_KEY)
 		return false;
 
@@ -977,7 +997,13 @@ static bool fpf_input_filter(struct input_handle *handle,
 	if (screen_on_full && !screen_off_early) squeeze_peek_wait = 0; // interrupt peek wait, touchscreen was interacted, don't turn screen off after peek time over...
 
 	// if it's not on, don't filter anything...
-	if (get_fpf_switch() == 0) return false;
+	if (get_fpf_switch() == 0) {
+#if 1
+// op6 specific
+		if (code == KEY_HOME) return true; // do not let KEY HOME through for OP6...
+#endif
+		return false;
+	}
 
 
 	if (code == KEY_WAKEUP) {
@@ -1036,6 +1062,7 @@ static bool fpf_input_filter(struct input_handle *handle,
 				}
 			}
 		}
+#if 0
 	} else if (get_fpf_switch() == FPF_SWITCH_DTAP_LDTAP) {
 	// phone back fingerprint sensor working : home button dtap, longer dtap sleep
 		if (value > 0) {
@@ -1068,9 +1095,9 @@ static bool fpf_input_filter(struct input_handle *handle,
 								fpf_pwrtrigger(0,__func__);
 							} else { // short doubletap
 								// home button simulation
-								input_report_key(fpf_pwrdev, KEY_HOME, 1);
+								input_report_key(fpf_pwrdev, get_fpf_key(), 1);
 								input_sync(fpf_pwrdev);
-								input_report_key(fpf_pwrdev, KEY_HOME, 0);
+								input_report_key(fpf_pwrdev, get_fpf_key(), 0);
 								input_sync(fpf_pwrdev);
 							}
 						}
@@ -1078,6 +1105,7 @@ static bool fpf_input_filter(struct input_handle *handle,
 				}
 			}
 		}
+#endif
 	} else if (get_fpf_switch() == FPF_SWITCH_DTAP) {
 	//standalone kernel mode. double tap means switch off
 	if (value > 0) {
@@ -1106,7 +1134,7 @@ static bool fpf_input_filter(struct input_handle *handle,
 				// if job was all finished inside the work func, we need to call the HOME = 0 release event here, as we couldn't signal to the work to do it on it's own
 				if (job_done_in_home_button_func_work) {
 						pr_info("fpf %s do key_home 0 sync as job was done, but without the possible signalling for HOME 0\n",__func__);
-						input_report_key(fpf_pwrdev, KEY_HOME, 0);
+						input_report_key(fpf_pwrdev, get_fpf_key(), 0);
 						input_sync(fpf_pwrdev);
 				} else {
 				// job is not yet finished in home button func work, let's signal it, to do the home button = 0 sync as well
@@ -3850,7 +3878,7 @@ static struct kobject *fpf_kobj;
 
 
 
-#ifdef CONFIG_FB
+#if defined(CONFIG_FB)
 static int fb_notifier_callback(struct notifier_block *self,
                                  unsigned long event, void *data)
 {
@@ -3915,11 +3943,84 @@ static int fb_notifier_callback(struct notifier_block *self,
     }
     return 0;
 }
+#elif defined(CONFIG_MSM_RDM_NOTIFY)
+static int fpf_fb_state_chg_callback(
+    struct notifier_block *nb, unsigned long val, void *data)
+{
+    struct msm_drm_notifier *evdata = data;
+    unsigned int blank;
+
+    if (val != MSM_DRM_EARLY_EVENT_BLANK && val != MSM_DRM_EVENT_BLANK)
+	return 0;
+
+    if (evdata->id != MSM_DRM_PRIMARY_DISPLAY)
+        return 0;
+
+    pr_info("[info] %s go to the msm_drm_notifier_callback value = %d\n",
+	    __func__, (int)val);
+
+    if (evdata && evdata->data && val ==
+	MSM_DRM_EARLY_EVENT_BLANK && fpf_pwrdev) {
+	blank = *(int *)(evdata->data);
+	switch (blank) {
+	case MSM_DRM_BLANK_POWERDOWN:
+		screen_on = 0;
+		screen_off_early = 1;
+		//screen_on_full = 0;
+		last_kad_screen_off_time = jiffies;
+		pr_info("fpf kad screen off -early\n");
+	    break;
+	case MSM_DRM_BLANK_UNBLANK:
+		screen_on = 1;
+		screen_off_early = 0;
+		last_screen_on_seconds = get_global_seconds();
+		last_screen_on_early_time = jiffies;
+		pr_info("fpf kad screen on -early\n");
+	    break;
+	default:
+	    pr_info("%s defalut\n", __func__);
+	    break;
+	}
+    }
+    if (evdata && evdata->data && val ==
+	MSM_DRM_EVENT_BLANK && fpf_pwrdev) {
+	blank = *(int *)(evdata->data);
+	switch (blank) {
+	case MSM_DRM_BLANK_POWERDOWN:
+		screen_on = 0;
+		screen_on_full = 0;
+		last_kad_screen_off_time = jiffies;
+		last_screen_event_timestamp = jiffies;
+		last_screen_off_seconds = get_global_seconds();
+		last_screen_lock_check_was_false = 0;
+		last_scroll_emulate_timestamp = 0;
+		pr_info("fpf kad screen off\n");
+	    break;
+	case MSM_DRM_BLANK_UNBLANK:
+		{
+		screen_on = 1;
+		screen_on_full = 1;
+		last_screen_event_timestamp = jiffies;
+		pr_info("%s kad screen on\n",__func__);
+		kcal_sleep_before_restore = true;
+		schedule_work(&kcal_restore_work);
+		pr_info("fpf screen on\n");
+		}
+	    break;
+	default:
+	    pr_info("%s defalut\n", __func__);
+	    break;
+	}
+    }
+    return NOTIFY_OK;
+}
 #endif
+
 
 static int __init fpf_init(void)
 {
 	int rc = 0;
+	int status = 0;
 	pr_info("fpf - init\n");
 
 	fpf_pwrdev = input_allocate_device();
@@ -3930,6 +4031,7 @@ static int __init fpf_init(void)
 
 	input_set_capability(fpf_pwrdev, EV_KEY, KEY_POWER);
 	input_set_capability(fpf_pwrdev, EV_KEY, KEY_HOME);
+	input_set_capability(fpf_pwrdev, EV_KEY, KEY_APPSELECT);
 	
 	set_bit(EV_KEY, fpf_pwrdev->evbit);
 	set_bit(KEY_HOME, fpf_pwrdev->keybit);
@@ -3971,11 +4073,18 @@ static int __init fpf_init(void)
 		pr_err("%s: Failed to register ts_input_handler\n", __func__);
 
 
-#ifdef CONFIG_FB
+#if defined(CONFIG_FB)
 	fb_notifier = kzalloc(sizeof(struct notifier_block), GFP_KERNEL);;
 	fb_notifier->notifier_call = fb_notifier_callback;
 	fb_register_client(fb_notifier);
+#elif defined(CONFIG_MSM_RDM_NOTIFY)
+	msm_drm_notif = kzalloc(sizeof(struct notifier_block), GFP_KERNEL);;
+	msm_drm_notif->notifier_call = fpf_fb_state_chg_callback;
+	status = msm_drm_register_client(msm_drm_notif);
+	if (status)
+		pr_err("Unable to register msm_drm_notifier: %d\n", status);
 #endif
+
 
 	fpf_kobj = kobject_create_and_add("fpf", NULL) ;
 	if (fpf_kobj == NULL) {
