@@ -440,7 +440,7 @@
 				qcom,id = <3>;
 				qcom,mode = "pwm";
 				pwms = <&pmi8998_pwm_5 0 0>;
-				qcom,pwm-us = <1000>;
+				qcom,pwm-us = <1500>;
 				qcom,max-current = <12>;
 				qcom,default-state = "off";
 				linux,name = "red";
@@ -451,7 +451,7 @@
 				qcom,id = <4>;
 				qcom,mode = "pwm";
 				pwms = <&pmi8998_pwm_4 0 0>;
-				qcom,pwm-us = <1000>;
+				qcom,pwm-us = <1500>;
 				qcom,max-current = <12>;
 				qcom,default-state = "off";
 				linux,name = "green";
@@ -462,7 +462,7 @@
 				qcom,id = <5>;
 				qcom,mode = "pwm";
 				pwms = <&pmi8998_pwm_3 0 0>;
-				qcom,pwm-us = <1000>;
+				qcom,pwm-us = <1500>;
 				qcom,max-current = <12>;
 				qcom,default-state = "off";
 				linux,name = "blue";
