@@ -51,8 +51,7 @@ MODULE_LICENSE("GPL");
 #define FPF_KEY_HOME 0
 #define FPF_KEY_APPSWITCH 1
 
-//extern void set_vibrate(int value); TODO
-void set_vibrate(int value) { }
+extern void set_vibrate(int value);
 
 static int fpf_switch = FPF_SWITCH_STOCK;
 static int fpf_key = 0;
@@ -665,14 +664,10 @@ static DECLARE_WORK(kcal_set_work, kcal_set);
 static int squeeze_peek_wait = 0;
 
 
-//extern void set_notification_booster(int value);
-void set_notification_booster(int value) { }
-//extern int get_notification_booster(void);
-int get_notification_booster(void) { return 0; }
-//extern void set_notification_boost_only_in_pocket(int value);
-void set_notification_boost_only_in_pocket(int value) { }
-//extern int get_notification_boost_only_in_pocket(void);
-int get_notification_boost_only_in_pocket(void) { return 0; }
+extern void set_notification_booster(int value);
+extern int get_notification_booster(void);
+extern void set_notification_boost_only_in_pocket(int value);
+extern int get_notification_boost_only_in_pocket(void);
 
 // value used to signal that HOME button release event should be synced as well in home button func work if it was not interrupted.
 static int do_home_button_off_too_in_work_func = 0;

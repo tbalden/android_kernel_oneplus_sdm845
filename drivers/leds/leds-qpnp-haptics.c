@@ -28,6 +28,11 @@
 #include <linux/qpnp/qpnp-misc.h>
 #include <linux/qpnp/qpnp-revid.h>
 
+#if 1
+#include <linux/notification/notification.h>
+#include <linux/uci/uci.h>
+#endif
+
 /* Register definitions */
 #define HAP_STATUS_1_REG(chip)		(chip->base + 0x0A)
 #define HAP_BUSY_BIT			BIT(1)
@@ -366,6 +371,10 @@ struct hap_chip {
 	bool				vcc_pon_enabled;
 };
 
+#if 1
+struct hap_chip *gchip;
+#endif
+
 static int qpnp_haptics_parse_buffer_dt(struct hap_chip *chip);
 static int qpnp_haptics_parse_pwm_dt(struct hap_chip *chip);
 
@@ -657,10 +666,117 @@ static bool is_haptics_idle(struct hap_chip *chip)
 	return true;
 }
 
+#if 1
+
+#define VMAX_MV_NOTIFICATION HAP_VMAX_MAX_MV
+#define MIN_TD_VALUE_NOTIFICATION 100
+// sense framework based values, 1000 for call, 500 for alarm
+#define MIN_TD_VALUE_NOTIFICATION_CALL 1000
+#define MIN_TD_VALUE_NOTIFICATION_ALARM 500
+
+static bool notification_duration_detected = 0;
+
+static int notification_booster = 2;
+static int vibration_power_set = 0;
+static int vibration_power_percentage = 40;
+
+static int suspend_booster = 0;
+static int vmax_needs_reset = 1;
+//static int alarm_value_counter = 0;
+//static int last_value = 0;
+//static unsigned long last_alarm_value_jiffies = 0;
+
+int uci_get_notification_booster(void) {
+	return uci_get_user_property_int_mm("notification_booster", notification_booster,0,100);
+}
+
+int uci_get_vibration_power_percentage(void) {
+	return uci_get_user_property_int_mm("vibration_power_percentage", vibration_power_percentage,0,100);
+}
+int uci_get_vibration_power_set(void) {
+	return uci_get_user_property_int_mm("vibration_power_set", vibration_power_set,0,1);
+}
+// register user uci listener
+void haptic_uci_user_listener(void) {
+	pr_info("%s uci user parse happened...\n",__func__);
+	vmax_needs_reset = 1;
+}
+
+static int boost_only_in_pocket = 1;
+static bool face_down_hr = false;
+static bool proximity = false;
+static bool in_pocket = false;
+
+int uci_get_boost_only_in_pocket(void) {
+	return uci_get_user_property_int_mm("boost_only_in_pocket", boost_only_in_pocket, 0, 1);
+}
+
+// register sys uci listener
+void haptic_uci_sys_listener(void) {
+	pr_info("%s [VIB] uci sys parse happened...\n",__func__);
+	proximity = !!uci_get_sys_property_int_mm("proximity", 1,0,1);
+	face_down_hr = !!uci_get_sys_property_int_mm("face_down_hr", 0,0,1);
+	// check if perfectly horizontal facedown is not true, and in proximity 
+	// ...(so it's supposedly not on table, but in pocket) then in_pocket = true
+	in_pocket = !face_down_hr && proximity;
+}
+
+void set_suspend_booster(int value) {
+	suspend_booster = !!value;
+}
+EXPORT_SYMBOL(set_suspend_booster);
+
+void set_notification_booster(int value) {
+	notification_booster = value;
+}
+EXPORT_SYMBOL(set_notification_booster);
+int get_notification_booster(void) {
+	return notification_booster;
+}
+EXPORT_SYMBOL(get_notification_booster);
+void set_notification_boost_only_in_pocket(int value) {
+	boost_only_in_pocket = value;
+}
+EXPORT_SYMBOL(set_notification_boost_only_in_pocket);
+int get_notification_boost_only_in_pocket(void) {
+	return boost_only_in_pocket;
+}
+EXPORT_SYMBOL(get_notification_boost_only_in_pocket);
+
+extern int register_haptic(int value);
+extern int input_is_screen_on(void);
+//extern int input_is_wake_by_user(void); TODO
+int input_is_wake_by_user(void) {
+	return 0;
+}
+
+int should_not_boost(void) {
+	int l_boost_only_in_pocket = uci_get_boost_only_in_pocket();
+	if (input_is_screen_on() && input_is_wake_by_user()) return 1;
+	if ((l_boost_only_in_pocket && in_pocket) || !l_boost_only_in_pocket) return 0;
+	return 1;
+}
+
+static int smart_get_boost_on(void) {
+	int level = smart_get_notification_level(NOTIF_VIB_BOOSTER);
+	int ret = !suspend_booster && uci_get_notification_booster();
+	if (level != NOTIF_DEFAULT) {
+		ret = 0; // should suspend boosting if not DEFAULT level
+	}
+	pr_info("%s smart_notif =========== level: %d  notif vib should boost %d \n",__func__, level, ret);
+	return ret;
+}
+
+
+#endif
+
+
 static int qpnp_haptics_mod_enable(struct hap_chip *chip, bool enable)
 {
 	u8 val;
 	int rc;
+	
+	pr_info("%s [CLEANSLATE] enable %d\n",__func__,enable);
 
 	if (!enable) {
 		if (!is_haptics_idle(chip))
@@ -710,6 +826,8 @@ static int qpnp_haptics_play_control(struct hap_chip *chip,
 static int qpnp_haptics_play(struct hap_chip *chip, bool enable)
 {
 	int rc = 0, time_ms = chip->play_time_ms;
+	
+	pr_info("%s [CLEANSLATE] play enable %d\n",__func__,enable);
 
     pr_err(" enable=%d time_ms=%d\n" ,enable, time_ms);
 
@@ -929,6 +1047,8 @@ static int qpnp_haptics_pwm_config(struct hap_chip *chip)
 	u8 val = 0;
 	int rc;
 
+	pr_info("%s [CLEANSLATE] pwm config freq %d\n",__func__,chip->ext_pwm_freq_khz);
+
 	if (chip->ext_pwm_freq_khz == 0)
 		return 0;
 
@@ -1079,6 +1199,10 @@ static int qpnp_haptics_play_mode_config(struct hap_chip *chip)
 	return rc;
 }
 
+#if 1
+static u64 stored_vmax_mv = 0;
+#endif
+
 /* configuration api for max voltage */
 static int qpnp_haptics_vmax_config(struct hap_chip *chip, int vmax_mv,
 				bool overdrive)
@@ -1086,8 +1210,27 @@ static int qpnp_haptics_vmax_config(struct hap_chip *chip, int vmax_mv,
 	u8 val = 0;
 	int rc;
 
+	int power_perc = uci_get_vibration_power_percentage();
+	int power_set = uci_get_vibration_power_set();
+
 	if (vmax_mv < 0)
 		return -EINVAL;
+
+#if 1
+	pr_info("%s [CLEANSLATE] vmax %d\n",__func__,vmax_mv);
+	if (notification_duration_detected && smart_get_boost_on()) {
+		vmax_mv = VMAX_MV_NOTIFICATION;
+		pr_info("%s [CLEANSLATE] boosting - modified vmax %d\n",__func__,vmax_mv);
+	} else {
+		if (power_set) {
+			vmax_mv = (vmax_mv * power_perc) / 100;
+			pr_info("%s [CLEANSLATE] modified vmax %d\n",__func__,vmax_mv);
+		} else {
+			//vmax_mv = stored_vmax_mv;
+		}
+	}
+#endif
+
 	/* Allow setting override bit in VMAX_CFG only for PM660 */
 	if (chip->revid->pmic_subtype != PM660_SUBTYPE)
 		overdrive = false;
@@ -1102,6 +1245,9 @@ static int qpnp_haptics_vmax_config(struct hap_chip *chip, int vmax_mv,
 	if (overdrive)
 		val |= HAP_VMAX_OVD_BIT;
 
+#if 1
+	stored_vmax_mv = val;
+#endif
 	rc = qpnp_haptics_masked_write_reg(chip, HAP_VMAX_CFG_REG(chip),
 			HAP_VMAX_MASK | HAP_VMAX_OVD_BIT, val);
 	return rc;
@@ -1570,8 +1716,48 @@ static ssize_t qpnp_haptics_store_duration(struct device *dev,
 	chip->play_time_ms = val;
 	mutex_unlock(&chip->param_lock);
 
+	pr_info("%s [CLEANSLATE] playtime duration %d\n",__func__,val);
+	if (val >= MIN_TD_VALUE_NOTIFICATION) {
+		notification_duration_detected = 1;
+		if (smart_get_boost_on()) { // raise voltage to boosted value in case of notification durations...
+			qpnp_haptics_vmax_config(chip,VMAX_MV_NOTIFICATION,false);
+		}
+	} else {
+		notification_duration_detected = 0;
+	}
+
 	return count;
 }
+#if 1
+void set_vibrate(int val)
+{
+	int rc;
+
+	if (val > gchip->max_play_time_ms)
+		return;
+
+	mutex_lock(&gchip->param_lock);
+	rc = qpnp_haptics_auto_mode_config(gchip, val);
+	if (rc < 0) {
+		pr_err("Unable to do auto mode config\n");
+		mutex_unlock(&gchip->param_lock);
+		return;
+	}
+
+	gchip->play_time_ms = val;
+	mutex_unlock(&gchip->param_lock);
+
+	hrtimer_cancel(&gchip->stop_timer);
+	if (is_sw_lra_auto_resonance_control(gchip))
+		hrtimer_cancel(&gchip->auto_res_err_poll_timer);
+	cancel_work_sync(&gchip->haptics_work);
+
+	atomic_set(&gchip->state, 1);
+	schedule_work(&gchip->haptics_work);
+
+}
+EXPORT_SYMBOL(set_vibrate);
+#endif
 
 static ssize_t qpnp_haptics_show_activate(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -1610,6 +1796,8 @@ static ssize_t qpnp_haptics_store_activate(struct device *dev,
 			return rc;
 		}
 	}
+
+	pr_info("%s [CLEANSLATE] activate %d\n",__func__,val);
 
 	return count;
 }
@@ -1986,6 +2174,10 @@ static int qpnp_haptics_config(struct hap_chip *chip)
 	if (rc < 0)
 		return rc;
 
+#if 1
+	stored_vmax_mv = chip->vmax_mv;
+#endif
+
 	/* Configure the ILIM register */
 	rc = qpnp_haptics_ilim_config(chip);
 	if (rc < 0)
@@ -2168,6 +2360,7 @@ static int qpnp_haptics_parse_pwm_dt(struct hap_chip *chip)
 	}
 
 	rc = of_property_read_u32(node, "qcom,period-us", &temp);
+	pr_info("%s [CLEANSLATE] haptic pwm period-us %d\n", __func__, temp);
 	if (!rc) {
 		chip->pwm_data.period_us = temp;
 	} else {
@@ -2349,6 +2542,7 @@ static int qpnp_haptics_parse_dt(struct hap_chip *chip)
 	chip->wave_shape = HAP_WAVE_SQUARE;
 	rc = of_property_read_string(node, "qcom,wave-shape", &temp_str);
 	if (!rc) {
+		pr_info("%s [CLEANSLATE] haptic wave-shape: %s\n", __func__, temp_str);
 		if (strcmp(temp_str, "sine") == 0)
 			chip->wave_shape = HAP_WAVE_SINE;
 		else if (strcmp(temp_str, "square") == 0)
@@ -2357,6 +2551,8 @@ static int qpnp_haptics_parse_dt(struct hap_chip *chip)
 			pr_err("Unsupported wave shape\n");
 			return -EINVAL;
 		}
+		chip->wave_shape = HAP_WAVE_SQUARE;
+		pr_info("%s [CLEANSLATE] haptic override to square %s\n", __func__, temp_str);
 	} else if (rc != -EINVAL) {
 		pr_err("Unable to read wave shape rc=%d\n", rc);
 		return rc;
@@ -2366,6 +2562,10 @@ static int qpnp_haptics_parse_dt(struct hap_chip *chip)
 	rc = of_property_read_u32(node,
 			"qcom,wave-play-rate-us", &temp);
 	if (!rc) {
+//		temp = 4255;
+//		temp = 5263;
+//		temp = 6667;
+		pr_info("%s [CLEANSLATE] haptic rate us %d\n", __func__, temp);
 		chip->wave_play_rate_us = temp;
 	} else if (rc != -EINVAL) {
 		pr_err("Unable to read play rate rc=%d\n", rc);
@@ -2389,6 +2589,7 @@ static int qpnp_haptics_parse_dt(struct hap_chip *chip)
 
 		rc = of_property_read_u32_array(node, "qcom,brake-pattern",
 				chip->brake_pat, HAP_BRAKE_PAT_LEN);
+
 		if (rc < 0) {
 			pr_err("Error in reading qcom,brake-pattern, rc=%d\n",
 				rc);
@@ -2608,6 +2809,13 @@ static int qpnp_haptics_probe(struct platform_device *pdev)
 		}
 	}
 		pr_info("qpnp_haptics_probe done\n");
+
+#ifdef CONFIG_UCI
+	uci_add_user_listener(haptic_uci_user_listener);
+	uci_add_sys_listener(haptic_uci_sys_listener);
+#endif
+	gchip = chip;
+
 	return 0;
 
 sysfs_fail:
