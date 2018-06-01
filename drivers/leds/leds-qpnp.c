@@ -2700,11 +2700,18 @@ static void led_blink(struct qpnp_led_data *led,
 		                for (i = 0; i < pwm_cfg->duty_cycles->num_duty_pcts; i++)
 	                	        pwm_cfg->duty_cycles->duty_pcts[i] =
     		                	        (int) pulse[i];
+				pwm_cfg->lut_params.ramp_step_ms = 100;
+				pwm_cfg->lut_params.lut_pause_lo = 2000;
+//        qcom,ramp-step-ms = <100>;
+//        qcom,pause-lo = <2000>;
+
 			} else {
 				int i;
 		                for (i = 0; i < pwm_cfg->duty_cycles->num_duty_pcts; i++)
 	                	        pwm_cfg->duty_cycles->duty_pcts[i] =
     		                	        (int) no_pulse[i];
+				pwm_cfg->lut_params.ramp_step_ms = 50;
+				pwm_cfg->lut_params.lut_pause_lo = 1000;
 			}
 #endif
 			rc = qpnp_rgb_set(led);
@@ -3519,6 +3526,12 @@ static int qpnp_get_config_pwm(struct pwm_config_data *pwm_cfg,
 
 	if (pwm_cfg->mode != MANUAL_MODE) {
 		rc = of_property_read_u32(node, "qcom,pwm-us", &val);
+
+#if 1
+		pr_info("%s [CLEANSLATE] pwm-us %d\n",__func__,val);
+		if (val == 1000) { val = 1500; }
+#endif
+
 		if (!rc)
 			pwm_cfg->pwm_period_us = val;
 		else
