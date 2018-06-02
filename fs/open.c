@@ -793,14 +793,30 @@ static int do_dentry_open(struct file *f,
 
 	error = break_lease(locks_inode(f), f->f_flags);
 	if (error)
+#ifdef CONFIG_UCI
+	{
+		pr_info("%s uci error at break_lease\n",__func__);
+		if (!uci) {
+#endif
 		goto cleanup_all;
+#ifdef CONFIG_UCI
+		}
+	}
+#endif
 
 	if (!open)
 		open = f->f_op->open;
 	if (open) {
 		error = open(inode, f);
 		if (error)
+#ifdef CONFIG_UCI
+		{
+			pr_info("%s uci error at open #1\n",__func__);
+#endif
 			goto cleanup_all;
+#ifdef CONFIG_UCI
+		}
+#endif
 	}
 	if ((f->f_mode & (FMODE_READ | FMODE_WRITE)) == FMODE_READ)
 		i_readcount_inc(inode);
