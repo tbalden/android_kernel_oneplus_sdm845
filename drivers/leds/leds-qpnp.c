@@ -3527,7 +3527,7 @@ static int qpnp_get_config_pwm(struct pwm_config_data *pwm_cfg,
 	if (pwm_cfg->mode != MANUAL_MODE) {
 		rc = of_property_read_u32(node, "qcom,pwm-us", &val);
 
-#if 1
+#if 0
 		pr_info("%s [CLEANSLATE] pwm-us %d\n",__func__,val);
 		if (val == 1000) { val = 1500; }
 #endif
