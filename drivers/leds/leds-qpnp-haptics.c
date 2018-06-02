@@ -1219,14 +1219,14 @@ static int qpnp_haptics_vmax_config(struct hap_chip *chip, int vmax_mv,
 #if 1
 	pr_info("%s [CLEANSLATE] vmax %d\n",__func__,vmax_mv);
 	if (notification_duration_detected && smart_get_boost_on()) {
+		stored_vmax_mv = vmax_mv;
 		vmax_mv = VMAX_MV_NOTIFICATION;
 		pr_info("%s [CLEANSLATE] boosting - modified vmax %d\n",__func__,vmax_mv);
 	} else {
+		stored_vmax_mv = vmax_mv;
 		if (power_set) {
 			vmax_mv = (vmax_mv * power_perc) / 100;
 			pr_info("%s [CLEANSLATE] modified vmax %d\n",__func__,vmax_mv);
-		} else {
-			//vmax_mv = stored_vmax_mv;
 		}
 	}
 #endif
@@ -1245,9 +1245,6 @@ static int qpnp_haptics_vmax_config(struct hap_chip *chip, int vmax_mv,
 	if (overdrive)
 		val |= HAP_VMAX_OVD_BIT;
 
-#if 1
-	stored_vmax_mv = val;
-#endif
 	rc = qpnp_haptics_masked_write_reg(chip, HAP_VMAX_CFG_REG(chip),
 			HAP_VMAX_MASK | HAP_VMAX_OVD_BIT, val);
 	return rc;
@@ -1723,7 +1720,13 @@ static ssize_t qpnp_haptics_store_duration(struct device *dev,
 			qpnp_haptics_vmax_config(chip,VMAX_MV_NOTIFICATION,false);
 		}
 	} else {
-		notification_duration_detected = 0;
+		if (notification_duration_detected && smart_get_boost_on()) {
+			// the vmax config call of this shorter vibration could have been overridden with notification boost maximum, so set it back with stored value...
+			notification_duration_detected = 0;
+			qpnp_haptics_vmax_config(chip,stored_vmax_mv,false);
+		} else {
+			notification_duration_detected = 0;
+		}
 	}
 
 	return count;
