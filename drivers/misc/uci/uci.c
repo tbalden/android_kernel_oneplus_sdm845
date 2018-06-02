@@ -17,10 +17,14 @@
 #include <linux/mm.h>
 //file operation-
 
+#define CONFIG_MSM_RDM_NOTIFY
+#undef CONFIG_FB
 
-#ifdef CONFIG_FB
 #include <linux/notifier.h>
 #include <linux/fb.h>
+
+#if defined(CONFIG_MSM_RDM_NOTIFY)
+#include <linux/msm_drm_notify.h>
 #endif
 
 #include <linux/alarmtimer.h>
@@ -35,9 +39,12 @@ MODULE_DESCRIPTION(DRIVER_DESCRIPTION);
 MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");
 
-#ifdef CONFIG_FB
-	struct notifier_block *uci_fb_notifier;
+#if defined(CONFIG_FB)
+struct notifier_block *fb_notifier;
+#elif defined(CONFIG_MSM_RDM_NOTIFY)
+struct notifier_block *uci_msm_drm_notif;
 #endif
+
 
 // file operations
 int uci_fwrite(struct file* file, unsigned long long offset, unsigned char* data, unsigned int size) {
@@ -480,7 +487,7 @@ void notify_uci_file_write_opened(const char *file_name) {
 }
 EXPORT_SYMBOL(notify_uci_file_write_opened);
 
-#ifdef CONFIG_FB
+#if defined(CONFIG_FB)
 static int first_unblank = 1;
 
 static int fb_notifier_callback(struct notifier_block *self,
@@ -526,16 +533,75 @@ static int fb_notifier_callback(struct notifier_block *self,
     }
     return 0;
 }
+#elif defined(CONFIG_MSM_RDM_NOTIFY)
+static int first_unblank = 1;
+
+static int fb_notifier_callback(
+    struct notifier_block *nb, unsigned long val, void *data)
+{
+    struct msm_drm_notifier *evdata = data;
+    unsigned int blank;
+
+    if (val != MSM_DRM_EARLY_EVENT_BLANK && val != MSM_DRM_EVENT_BLANK)
+	return 0;
+
+    if (evdata->id != MSM_DRM_PRIMARY_DISPLAY)
+        return 0;
+
+    pr_info("[info] %s go to the msm_drm_notifier_callback value = %d\n",
+	    __func__, (int)val);
+
+    if (evdata && evdata->data && val ==
+	MSM_DRM_EARLY_EVENT_BLANK) {
+	blank = *(int *)(evdata->data);
+	switch (blank) {
+	case MSM_DRM_BLANK_POWERDOWN:
+	    break;
+	case MSM_DRM_BLANK_UNBLANK:
+	    break;
+	default:
+	    pr_info("%s defalut\n", __func__);
+	    break;
+	}
+    }
+    if (evdata && evdata->data && val ==
+	MSM_DRM_EVENT_BLANK) {
+	blank = *(int *)(evdata->data);
+	switch (blank) {
+	case MSM_DRM_BLANK_POWERDOWN:
+		pr_info("uci screen off\n");
+	    break;
+	case MSM_DRM_BLANK_UNBLANK:
+		pr_info("uci screen on\n");
+		if (first_unblank) {
+			start_alarm_parse(20); // start in 40 sec, user cfg parse...
+			first_unblank = 0;
+		}
+	    break;
+	default:
+	    pr_info("%s default\n", __func__);
+	    break;
+	}
+    }
+    return NOTIFY_OK;
+}
 #endif
 
 static int __init uci_init(void)
 {
 	int rc = 0;
+	int status = 0;
 	pr_info("uci - init\n");
-#ifdef CONFIG_FB
+#if defined(CONFIG_FB)
 	uci_fb_notifier = kzalloc(sizeof(struct notifier_block), GFP_KERNEL);;
 	uci_fb_notifier->notifier_call = fb_notifier_callback;
 	fb_register_client(uci_fb_notifier);
+#elif defined(CONFIG_MSM_RDM_NOTIFY)
+        uci_msm_drm_notif = kzalloc(sizeof(struct notifier_block), GFP_KERNEL);;
+        uci_msm_drm_notif->notifier_call = fb_notifier_callback;
+        status = msm_drm_register_client(uci_msm_drm_notif);
+        if (status)
+                pr_err("Unable to register msm_drm_notifier: %d\n", status);
 #endif
 	alarm_init(&parse_user_cfg_rtc, ALARM_REALTIME,
 		parse_user_cfg_rtc_callback);
