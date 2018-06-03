@@ -20,15 +20,18 @@ MODULE_LICENSE("GPL");
 
 //sweep2sleep
 #define S2S_PWRKEY_DUR         60
-#define S2S_Y_MAX             	1920
-#define S2S_Y_LIMIT            S2S_Y_MAX-100
+#define S2S_Y_MAX             	2280
 #define SWEEP_RIGHT		0x01
 #define SWEEP_LEFT		0x02
 #define VIB_STRENGTH		20
 
+#define X_DIFF_THRESHOLD_0 100 // 200
+#define X_DIFF_THRESHOLD_1 80 // 180
+
 // 1=sweep right, 2=sweep left, 3=both
 static int s2s_switch = 0;
-static int s2s_y_limit = S2S_Y_LIMIT;
+static int s2s_height = 100;
+static int s2s_width = 70;
 static int touch_x = 0, touch_y = 0, firstx = 0;
 static bool touch_x_called = false, touch_y_called = false;
 static bool scr_on_touch = false, barrier[2] = {false, false};
@@ -43,6 +46,15 @@ static int vib_strength = VIB_STRENGTH;
 #ifdef CONFIG_UCI
 static int get_s2s_switch(void) {
 	return uci_get_user_property_int_mm("sweep2sleep_mode", s2s_switch, 0, 3);
+}
+static int get_s2s_height(void) {
+	return uci_get_user_property_int_mm("sweep2sleep_height", s2s_height, 50, 200);
+}
+static int get_s2s_width(void) {
+	return uci_get_user_property_int_mm("sweep2sleep_width", s2s_width, 0, 100);
+}
+static int get_s2s_y_limit(void) {
+	return S2S_Y_MAX - get_s2s_height();
 }
 #endif
 
@@ -83,6 +95,9 @@ static void sweep2sleep_reset(void) {
 static void detect_sweep2sleep(int x, int y, bool st)
 {
         int prevx = 0, nextx = 0;
+	int s2s_y_limit = get_s2s_y_limit();
+	int x_threshold_0 = X_DIFF_THRESHOLD_0 + get_s2s_width();
+	int x_threshold_1 = X_DIFF_THRESHOLD_1 + get_s2s_width();
         bool single_touch = st;
 
 	if (firstx == 0)
@@ -92,16 +107,16 @@ static void detect_sweep2sleep(int x, int y, bool st)
 		s2s_switch = 3;
 
 	//left->right
-	if (single_touch && firstx < 810 && (get_s2s_switch() & SWEEP_RIGHT)) {
+	if (single_touch && firstx < 850 && (get_s2s_switch() & SWEEP_RIGHT)) {
 		scr_on_touch=true;
 		prevx = firstx;
-		nextx = prevx + 180;
+		nextx = prevx + x_threshold_1;
 		if ((barrier[0] == true) ||
 		   ((x > prevx) &&
 		    (x < nextx) &&
 		    (y > s2s_y_limit))) {
 			prevx = nextx;
-			nextx += 200;
+			nextx += x_threshold_0;
 			barrier[0] = true;
 			if ((barrier[1] == true) ||
 			   ((x > prevx) &&
@@ -111,7 +126,7 @@ static void detect_sweep2sleep(int x, int y, bool st)
 				barrier[1] = true;
 				if ((x > prevx) &&
 				    (y > s2s_y_limit)) {
-					if (x > (nextx + 180)) {
+					if (x > (nextx + x_threshold_1)) {
 						if (exec_count) {
 							sweep2sleep_pwrtrigger();
 							exec_count = false;
@@ -121,16 +136,16 @@ static void detect_sweep2sleep(int x, int y, bool st)
 			}
 		}
 	//right->left
-	} else if (firstx >= 180 && (get_s2s_switch() & SWEEP_LEFT)) {
+	} else if (firstx >= 140 && (get_s2s_switch() & SWEEP_LEFT)) {
 		scr_on_touch=true;
 		prevx = firstx;
-		nextx = prevx - 180;
+		nextx = prevx - x_threshold_1;
 		if ((barrier[0] == true) ||
 		   ((x < prevx) &&
 		    (x > nextx) &&
 		    (y > s2s_y_limit))) {
 			prevx = nextx;
-			nextx -= 200;
+			nextx -= x_threshold_0;
 			barrier[0] = true;
 			if ((barrier[1] == true) ||
 			   ((x < prevx) &&
@@ -140,7 +155,7 @@ static void detect_sweep2sleep(int x, int y, bool st)
 				barrier[1] = true;
 				if ((x < prevx) &&
 				    (y > s2s_y_limit)) {
-					if (x < (nextx - 180)) {
+					if (x < (nextx - x_threshold_1)) {
 						if (exec_count) {
 							sweep2sleep_pwrtrigger();
 							exec_count = false;
