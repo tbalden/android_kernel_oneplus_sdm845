@@ -400,7 +400,7 @@ static ssize_t backlight_min_store(struct kobject *kobj,
 
 	backlight_min = input;
 
-	if (backlight_min < 1 || backlight_min > 4095)
+	if (backlight_min < 1 || backlight_min > 2047)
 		backlight_min = 10;
 
 	return count;
@@ -434,7 +434,7 @@ static void uci_user_listener(void) {
 	int on = backlight_dimmer_uci?1:0;
 	int backlight_min_curr = backlight_min;
 	uci_user_backlight_dimmer_setting = true;
-	backlight_min = uci_get_user_property_int_mm("backlight_min", backlight_min, 1, 4095);
+	backlight_min = uci_get_user_property_int_mm("backlight_min", backlight_min, 1, 2047);
 	on = uci_get_user_property_int_mm("backlight_dimmer", on, 0, 1);
 
 	if (!!on != backlight_dimmer_uci || backlight_min_curr != backlight_min) change = true;
