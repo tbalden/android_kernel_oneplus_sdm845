@@ -5,6 +5,10 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 
+#ifdef CONFIG_UCI
+#include <linux/uci/uci.h>
+#endif
+
 #define DRIVER_AUTHOR "flar2 (asegaert at gmail.com)"
 #define DRIVER_DESCRIPTION "sweep2sleep driver"
 #define DRIVER_VERSION "4.0"
@@ -23,7 +27,7 @@ MODULE_LICENSE("GPL");
 #define VIB_STRENGTH		20
 
 // 1=sweep right, 2=sweep left, 3=both
-static int s2s_switch = 2;
+static int s2s_switch = 0;
 static int s2s_y_limit = S2S_Y_LIMIT;
 static int touch_x = 0, touch_y = 0, firstx = 0;
 static bool touch_x_called = false, touch_y_called = false;
@@ -35,6 +39,13 @@ static struct workqueue_struct *s2s_input_wq;
 static struct work_struct s2s_input_work;
 extern void set_vibrate(int value); 
 static int vib_strength = VIB_STRENGTH;
+
+#ifdef CONFIG_UCI
+static int get_s2s_switch(void) {
+	return uci_get_user_property_int_mm("sweep2sleep_mode", s2s_switch, 0, 3);
+}
+#endif
+
 
 /* PowerKey work func */
 static void sweep2sleep_presspwr(struct work_struct * sweep2sleep_presspwr_work) {
@@ -77,11 +88,11 @@ static void detect_sweep2sleep(int x, int y, bool st)
 	if (firstx == 0)
 		firstx = x;
 
-	if (s2s_switch > 3)
+	if (get_s2s_switch() > 3)
 		s2s_switch = 3;
 
 	//left->right
-	if (single_touch && firstx < 810 && (s2s_switch & SWEEP_RIGHT)) {
+	if (single_touch && firstx < 810 && (get_s2s_switch() & SWEEP_RIGHT)) {
 		scr_on_touch=true;
 		prevx = firstx;
 		nextx = prevx + 180;
@@ -110,7 +121,7 @@ static void detect_sweep2sleep(int x, int y, bool st)
 			}
 		}
 	//right->left
-	} else if (firstx >= 180 && (s2s_switch & SWEEP_LEFT)) {
+	} else if (firstx >= 180 && (get_s2s_switch() & SWEEP_LEFT)) {
 		scr_on_touch=true;
 		prevx = firstx;
 		nextx = prevx - 180;
