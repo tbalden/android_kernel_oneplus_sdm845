@@ -97,6 +97,7 @@
 #define HAP_VMAX_SHIFT			1
 #define HAP_VMAX_MIN_MV			116
 #define HAP_VMAX_MAX_MV			3596
+static int HAP_VMAX_MAX_MV_CALC = HAP_VMAX_MAX_MV;
 
 #define HAP_ILIM_CFG_REG(chip)		(chip->base + 0x52)
 #define HAP_ILIM_SEL_MASK		BIT(0)
@@ -677,8 +678,10 @@ static bool is_haptics_idle(struct hap_chip *chip)
 static bool notification_duration_detected = 0;
 
 static int notification_booster = 2;
+static int notification_booster_overdrive_perc = 100;
 static int vibration_power_set = 0;
 static int vibration_power_percentage = 40;
+static int vibration_power_overdrive_perc = 140;
 
 static int suspend_booster = 0;
 static int vmax_needs_reset = 1;
@@ -688,6 +691,9 @@ static int vmax_needs_reset = 1;
 
 int uci_get_notification_booster(void) {
 	return uci_get_user_property_int_mm("notification_booster", notification_booster,0,100);
+}
+int uci_get_notification_booster_overdrive_perc(void) {
+	return uci_get_user_property_int_mm("notification_booster_overdrive_perc", notification_booster_overdrive_perc,70,150);
 }
 
 int uci_get_vibration_power_percentage(void) {
@@ -1220,7 +1226,9 @@ static int qpnp_haptics_vmax_config(struct hap_chip *chip, int vmax_mv,
 	pr_info("%s [CLEANSLATE] vmax %d\n",__func__,vmax_mv);
 	if (notification_duration_detected && smart_get_boost_on()) {
 		stored_vmax_mv = vmax_mv;
-		vmax_mv = VMAX_MV_NOTIFICATION;
+		HAP_VMAX_MAX_MV_CALC = HAP_VMAX_MAX_MV * uci_get_notification_booster_overdrive_perc();
+		HAP_VMAX_MAX_MV_CALC /= 100;
+		vmax_mv = HAP_VMAX_MAX_MV_CALC;
 		pr_info("%s [CLEANSLATE] boosting - modified vmax %d\n",__func__,vmax_mv);
 	} else {
 		stored_vmax_mv = vmax_mv;
@@ -1237,8 +1245,8 @@ static int qpnp_haptics_vmax_config(struct hap_chip *chip, int vmax_mv,
 
 	if (vmax_mv < HAP_VMAX_MIN_MV)
 		vmax_mv = HAP_VMAX_MIN_MV;
-	else if (vmax_mv > HAP_VMAX_MAX_MV)
-		vmax_mv = HAP_VMAX_MAX_MV;
+	else if (vmax_mv > HAP_VMAX_MAX_MV_CALC)
+		vmax_mv = HAP_VMAX_MAX_MV_CALC;
 
 	val = DIV_ROUND_CLOSEST(vmax_mv, HAP_VMAX_MIN_MV);
 	val <<= HAP_VMAX_SHIFT;
@@ -1393,7 +1401,7 @@ static int qpnp_haptics_auto_mode_config(struct hap_chip *chip, int time_ms)
 		}
 
 		if (chip->vmax_mv >= 2320)
-			vmax_mv = HAP_VMAX_MAX_MV;
+			vmax_mv = HAP_VMAX_MAX_MV_CALC;
 		else
 			vmax_mv = chip->vmax_mv;
 		rc = qpnp_haptics_vmax_config(chip, vmax_mv, true);
@@ -2515,7 +2523,7 @@ static int qpnp_haptics_parse_dt(struct hap_chip *chip)
 		return rc;
 	}
 
-	chip->vmax_mv = HAP_VMAX_MAX_MV;
+	chip->vmax_mv = HAP_VMAX_MAX_MV_CALC;
 	rc = of_property_read_u32(node, "qcom,vmax-mv", &temp);
 	if (!rc) {
 		chip->vmax_mv = temp;
@@ -2523,6 +2531,10 @@ static int qpnp_haptics_parse_dt(struct hap_chip *chip)
 		pr_err("Unable to read Vmax rc=%d\n", rc);
 		return rc;
 	}
+#if 1
+	HAP_VMAX_MAX_MV_CALC *= vibration_power_overdrive_perc;
+	HAP_VMAX_MAX_MV_CALC /= 100;
+#endif
 
 	chip->ilim_ma = HAP_ILIM_400_MA;
 	rc = of_property_read_u32(node, "qcom,ilim-ma", &temp);
