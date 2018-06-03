@@ -19,4 +19,9 @@ enum notif_smart_level_type {
 
 extern void smart_set_last_user_activity_time(void);
 extern int smart_get_notification_level(int notif_type);
+
+extern bool ntf_is_screen_on(void);
+extern bool ntf_is_screen_early_on(void);
+extern bool ntf_is_screen_early_off(void);
+
 #endif /* __NOTIFICATION_H__ */
