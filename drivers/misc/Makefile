@@ -83,3 +83,4 @@ $(obj)/lkdtm_rodata_objcopy.o: $(obj)/lkdtm_rodata.o FORCE
 
 obj-$(CONFIG_BOOTLOADER_LOG)	+= bootloader_log.o
 obj-$(CONFIG_UCI)  += uci/
+obj-$(CONFIG_UCI_NOTIFICATIONS)  += notification/
