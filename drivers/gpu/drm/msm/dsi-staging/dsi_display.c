@@ -40,6 +40,16 @@
 #include <linux/cpufreq.h>
 #include <linux/pm_wakeup.h>
 
+#include <linux/msm_drm_notify.h>
+#include <linux/notifier.h>
+
+#ifdef CONFIG_UCI
+#include <linux/uci/uci.h>
+#ifdef CONFIG_UCI_NOTIFICATIONS
+#include <linux/notification/notification.h>
+#endif
+#endif
+
 #define BIG_CPU_NUMBER 4
 #if defined(CONFIG_ARCH_SDM845)
 #define LCDSPEEDUP_BIG_CPU_QOS_FREQ    2649600
@@ -51,8 +61,18 @@
 #define LCD_QOS_TIMEOUT 1000000
 #define NO_BOOST        0
 
-int backlight_min = 0;
+#if 1
+bool backlight_dimmer = false;
+module_param(backlight_dimmer, bool, 0644);
+static int backlight_min = 0;
+static u32 last_brightness;
+static bool first_brightness_set = false;
 module_param(backlight_min, int, 0644);
+#ifdef CONFIG_UCI
+static bool uci_user_backlight_dimmer_setting = false;
+static bool backlight_dimmer_uci = false;
+#endif
+#endif
 
 static struct pm_qos_request lcdspeedup_little_cpu_qos;
 static struct pm_qos_request lcdspeedup_big_cpu_qos;
@@ -317,8 +337,18 @@ int dsi_display_set_backlight(void *display, u32 bl_lvl)
 	bl_scale_ad = panel->bl_config.bl_scale_ad;
 	bl_temp = (u32)bl_temp * bl_scale_ad / MAX_AD_BL_SCALE_LEVEL;
 
-	if (bl_temp != 0 && bl_temp < backlight_min)
-		bl_temp = backlight_min;
+#if 1
+	last_brightness = bl_lvl;
+	first_brightness_set = true;
+#ifdef CONFIG_UCI
+	if (backlight_dimmer||backlight_dimmer_uci) {
+#else
+	if (backlight_dimmer) {
+#endif
+		if (bl_temp != 0 && bl_temp < backlight_min)
+			bl_temp = backlight_min;
+	}
+#endif
 
 	pr_debug("bl_scale = %u, bl_scale_ad = %u, bl_lvl = %u\n",
 		bl_scale, bl_scale_ad, (u32)bl_temp);
@@ -347,6 +377,77 @@ error:
 	mutex_unlock(&panel->panel_lock);
 	return rc;
 }
+
+#if 1
+static ssize_t backlight_min_show(struct kobject *kobj,
+		struct kobj_attribute *attr, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", backlight_min);
+}
+
+static ssize_t backlight_min_store(struct kobject *kobj,
+		struct kobj_attribute *attr, const char *buf, size_t count)
+{
+	int ret;
+	unsigned long input;
+#ifdef CONFIG_UCI
+	if (uci_user_backlight_dimmer_setting) return count; // do not allow store if uci handles this
+#endif
+
+	ret = kstrtoul(buf, 0, &input);
+	if (ret < 0)
+		return ret;
+
+	backlight_min = input;
+
+	if (backlight_min < 1 || backlight_min > 4095)
+		backlight_min = 10;
+
+	return count;
+}
+
+//laziness, and I want a different path for app compatibility
+static struct kobj_attribute backlight_min_attribute =
+	__ATTR(backlight_min, 0664,
+		backlight_min_show,
+		backlight_min_store);
+
+static struct attribute *backlight_dimmer_attrs[] =
+	{
+		&backlight_min_attribute.attr,
+		NULL,
+	};
+
+static struct attribute_group backlight_dimmer_attr_group =
+	{
+		.attrs = backlight_dimmer_attrs,
+	};
+
+static struct kobject *backlight_dimmer_kobj;
+#endif
+
+#ifdef CONFIG_UCI
+
+// registered user uci listener
+static void uci_user_listener(void) {
+	bool change = false;
+	int on = backlight_dimmer_uci?1:0;
+	int backlight_min_curr = backlight_min;
+	uci_user_backlight_dimmer_setting = true;
+	backlight_min = uci_get_user_property_int_mm("backlight_min", backlight_min, 1, 4095);
+	on = uci_get_user_property_int_mm("backlight_dimmer", on, 0, 1);
+
+	if (!!on != backlight_dimmer_uci || backlight_min_curr != backlight_min) change = true;
+
+	backlight_dimmer_uci = !!on;
+
+	if (first_brightness_set && change) {
+		if (last_brightness!=LED_OFF && ntf_is_screen_on()) {
+			dsi_display_set_backlight(main_display, last_brightness);
+		}
+	}
+}
+#endif
 
 static int dsi_display_cmd_engine_enable(struct dsi_display *display)
 {
@@ -5460,6 +5561,9 @@ int dsi_display_dev_probe(struct platform_device *pdev)
 		else
 			secondary_active_node = pdev->dev.of_node;
 	}
+#ifdef CONFIG_UCI
+	uci_add_user_listener(uci_user_listener);
+#endif
 	return rc;
 }
 
@@ -8530,8 +8634,24 @@ EXPORT_SYMBOL(get_main_display);
 
 static int __init dsi_display_register(void)
 {
+#if 1
+	int rc = 0;
+#endif
 	dsi_phy_drv_register();
 	dsi_ctrl_drv_register();
+
+#if 1
+	backlight_dimmer_kobj = kobject_create_and_add("backlight_dimmer", NULL);
+	if (backlight_dimmer_kobj == NULL) {
+		pr_warn("%s kobject create failed!\n", __func__);
+        }
+
+	rc = sysfs_create_group(backlight_dimmer_kobj, &backlight_dimmer_attr_group);
+        if (rc) {
+		pr_warn("%s sysfs file create failed!\n", __func__);
+	}
+#endif
+
 	return platform_driver_register(&dsi_display_driver);
 }
 
