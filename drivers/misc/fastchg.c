@@ -27,7 +27,19 @@
 #include <linux/string.h>
 #include <linux/module.h>
 
-int force_fast_charge = 0;
+#ifdef CONFIG_UCI
+#include <linux/uci/uci.h>
+#endif
+
+int force_fast_charge = 1;
+int get_force_fast_charge(void) {
+#ifdef CONFIG_UCI
+	return uci_get_user_property_int_mm("fastcharge", force_fast_charge, 0, 1);
+#else
+	return force_fast_charge;
+#endif
+}
+EXPORT_SYMBOL(get_force_fast_charge);
 
 static int __init get_fastcharge_opt(char *ffc)
 {
