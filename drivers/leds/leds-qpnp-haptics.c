@@ -750,15 +750,15 @@ int get_notification_boost_only_in_pocket(void) {
 EXPORT_SYMBOL(get_notification_boost_only_in_pocket);
 
 extern int register_haptic(int value);
-extern int input_is_screen_on(void);
+extern bool ntf_is_screen_on(void);
 //extern int input_is_wake_by_user(void); TODO
 int input_is_wake_by_user(void) {
-	return 0;
+	return 1;
 }
 
 int should_not_boost(void) {
 	int l_boost_only_in_pocket = uci_get_boost_only_in_pocket();
-	if (input_is_screen_on() && input_is_wake_by_user()) return 1;
+	if (ntf_is_screen_on() && input_is_wake_by_user()) return 1;
 	if ((l_boost_only_in_pocket && in_pocket) || !l_boost_only_in_pocket) return 0;
 	return 1;
 }
@@ -1224,7 +1224,7 @@ static int qpnp_haptics_vmax_config(struct hap_chip *chip, int vmax_mv,
 
 #if 1
 	pr_info("%s [CLEANSLATE] vmax %d\n",__func__,vmax_mv);
-	if (notification_duration_detected && smart_get_boost_on()) {
+	if (notification_duration_detected && smart_get_boost_on() && !should_not_boost()) {
 		stored_vmax_mv = vmax_mv;
 		HAP_VMAX_MAX_MV_CALC = HAP_VMAX_MAX_MV * uci_get_notification_booster_overdrive_perc();
 		HAP_VMAX_MAX_MV_CALC /= 100;
@@ -1724,11 +1724,11 @@ static ssize_t qpnp_haptics_store_duration(struct device *dev,
 	pr_info("%s [CLEANSLATE] playtime duration %d\n",__func__,val);
 	if (val >= MIN_TD_VALUE_NOTIFICATION) {
 		notification_duration_detected = 1;
-		if (smart_get_boost_on()) { // raise voltage to boosted value in case of notification durations...
+		if (smart_get_boost_on() && !should_not_boost()) { // raise voltage to boosted value in case of notification durations...
 			qpnp_haptics_vmax_config(chip,VMAX_MV_NOTIFICATION,false);
 		}
 	} else {
-		if (notification_duration_detected && smart_get_boost_on()) {
+		if (notification_duration_detected && smart_get_boost_on() && !should_not_boost()) {
 			// the vmax config call of this shorter vibration could have been overridden with notification boost maximum, so set it back with stored value...
 			notification_duration_detected = 0;
 			qpnp_haptics_vmax_config(chip,stored_vmax_mv,false);
