@@ -34,7 +34,7 @@ MODULE_LICENSE("GPL");
 #define JIFFY_MUL 1
 #endif
 
-#define FPF_PWRKEY_DUR          60
+#define FPF_PWRKEY_DUR          20
 #define FUNC_CYCLE_DUR          9 + JIFFY_MUL
 #define VIB_STRENGTH		20
 
