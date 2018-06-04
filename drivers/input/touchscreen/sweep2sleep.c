@@ -32,6 +32,7 @@ MODULE_LICENSE("GPL");
 static int s2s_switch = 0;
 static int s2s_height = 100;
 static int s2s_width = 70;
+static int s2s_from_corner = 0;
 static int touch_x = 0, touch_y = 0, firstx = 0;
 static bool touch_x_called = false, touch_y_called = false;
 static bool scr_on_touch = false, barrier[2] = {false, false};
@@ -52,6 +53,9 @@ static int get_s2s_height(void) {
 }
 static int get_s2s_width(void) {
 	return uci_get_user_property_int_mm("sweep2sleep_width", s2s_width, 0, 100);
+}
+static int get_s2s_from_corner(void) {
+	return uci_get_user_property_int_mm("sweep2sleep_from_corner", s2s_from_corner, 0, 1);
 }
 static int get_s2s_y_limit(void) {
 	return S2S_Y_MAX - get_s2s_height();
@@ -107,7 +111,7 @@ static void detect_sweep2sleep(int x, int y, bool st)
 		s2s_switch = 3;
 
 	//left->right
-	if (single_touch && firstx < 850 && (get_s2s_switch() & SWEEP_RIGHT)) {
+	if (single_touch && ((firstx < 850 && !get_s2s_from_corner()) || firstx < 250) && (get_s2s_switch() & SWEEP_RIGHT)) {
 		scr_on_touch=true;
 		prevx = firstx;
 		nextx = prevx + x_threshold_1;
@@ -136,7 +140,7 @@ static void detect_sweep2sleep(int x, int y, bool st)
 			}
 		}
 	//right->left
-	} else if (firstx >= 140 && (get_s2s_switch() & SWEEP_LEFT)) {
+	} else if (((firstx >= 140 && !get_s2s_from_corner()) || firstx >=800) && (get_s2s_switch() & SWEEP_LEFT)) {
 		scr_on_touch=true;
 		prevx = firstx;
 		nextx = prevx - x_threshold_1;
