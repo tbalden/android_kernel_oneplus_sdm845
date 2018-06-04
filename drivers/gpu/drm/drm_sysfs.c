@@ -30,6 +30,16 @@
 #include <linux/init.h>
 #include <drm/drm_mipi_dsi.h>
 
+
+
+
+
+
+
+#ifdef CONFIG_UCI
+#include <linux/uci/uci.h>
+#endif
+
 #define to_drm_minor(d) dev_get_drvdata(d)
 #define to_drm_connector(d) dev_get_drvdata(d)
 
@@ -380,6 +390,54 @@ static ssize_t op_friginer_print_hbm_store(struct device *dev,
 
 	return count;
 }
+#ifdef CONFIG_UCI
+struct drm_connector *main_connector = NULL;
+static void uci_hbm_set(int hbm_mode) {
+	if (main_connector) {
+		int ret = 0;
+		pr_info("%s [CLEANSLATE] set hbm... %d\n",__func__,hbm_mode);
+		ret = dsi_display_set_hbm_mode(main_connector, hbm_mode);
+	}
+}
+
+
+// params...
+bool hbm_switch = false;
+
+int last_hbm_mode = 0;
+int lux_level = 0;
+
+int hbm_to_lux_limits[6] = {0,7000,10000,14000,19000,25000};
+
+// registered sys uci listener
+static void uci_sys_listener(void) {
+	int i = 0;
+        lux_level = uci_get_sys_property_int_mm("lux_level", lux_level, 0, 200000);
+	if (!hbm_switch) {
+		if (last_hbm_mode != 0) {
+			uci_hbm_set(0);
+		}
+		last_hbm_mode = 0;
+	} else {
+	for (i=5;i>=0;i--) {
+		if (lux_level>=hbm_to_lux_limits[i]) {
+			if (i!=last_hbm_mode) {
+				uci_hbm_set(i);
+				last_hbm_mode = i;
+				break;
+			}
+		}
+	}
+	}
+}
+
+// registered user uci listener
+static void uci_user_listener(void) {
+        hbm_switch = uci_get_user_property_int_mm("hbm_switch", hbm_switch, 0, 1);
+	pr_info("%s [CLEANSLATE] hbm switch... %d\n",__func__,hbm_switch);
+}
+
+#endif
 
 static ssize_t aod_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -1002,7 +1060,16 @@ int drm_sysfs_connector_add(struct drm_connector *connector)
 
 	/* Let userspace know we have a new connector */
 	drm_sysfs_hotplug_event(dev);
-
+#ifdef CONFIG_UCI
+	if (!main_connector) {
+		if (strstr("DSI-1",connector->name)) {
+			pr_info("%s [CLEANSLATE] connector %s %s\n",__func__, connector->kdev->init_name, connector->name);
+			uci_add_sys_listener(uci_sys_listener);
+			uci_add_user_listener(uci_user_listener);
+			main_connector = connector;
+		}
+	}
+#endif
 	return 0;
 }
 
