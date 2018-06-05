@@ -50,6 +50,13 @@
 #include "../wcdcal-hwdep.h"
 #include "wcd934x-dsd.h"
 
+#ifdef CONFIG_UCI
+#include <linux/uci/uci.h>
+#ifdef CONFIG_UCI_NOTIFICATIONS
+#include <linux/notification/notification.h>
+#endif
+#endif
+
 #define CONFIG_SOUND_CONTROL
 
 #define WCD934X_RATES_MASK (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000 |\
@@ -10215,6 +10222,53 @@ static struct attribute_group sound_control_attr_group = {
 };
 
 static struct kobject *sound_control_kobj;
+
+#ifdef CONFIG_UCI
+
+#define GAIN_UNDEFINED -9999
+
+static int speaker_gain = 6; 	// 0 .. 6
+
+static int earpiece_gain = 0; 	// -10 .. 20
+static int mic_gain = 0; 		// -10 .. 20
+
+static int hp_l_gain = 0; 		// -84 ..  20
+static int hp_r_gain = 0; 		// -84 ..  20
+
+// registered user uci listener
+static void uci_user_listener(void) {
+	int speaker_gain_new = uci_get_user_property_int_mm("sound_speaker_gain", speaker_gain, 0, 6);
+	int earpiece_gain_new = uci_get_user_property_int_mm("sound_earpiece_gain", earpiece_gain,-10, 20);
+	int mic_gain_new = uci_get_user_property_int_mm("sound_mic_gain", mic_gain, -10, 20);
+	int hp_l_gain_new = uci_get_user_property_int_mm("sound_hp_l_gain", hp_l_gain, -84, 20);
+	int hp_r_gain_new = uci_get_user_property_int_mm("sound_hp_r_gain", hp_r_gain, -84, 20);
+
+	if (speaker_gain_new != speaker_gain) {
+		speaker_gain = speaker_gain_new;
+		speaker_gain_val = sound_control_speaker_gain(speaker_gain);
+	}
+	if (earpiece_gain_new != earpiece_gain) {
+		earpiece_gain = earpiece_gain_new;
+		snd_soc_write(sound_control_codec_ptr, WCD934X_CDC_RX0_RX_VOL_CTL, earpiece_gain);
+	}
+	if (mic_gain_new != mic_gain) {
+		mic_gain = mic_gain_new;
+		snd_soc_write(sound_control_codec_ptr, WCD934X_CDC_TX7_TX_VOL_CTL, mic_gain);
+	}
+	if (hp_l_gain_new != hp_l_gain) {
+		hp_l_gain = hp_l_gain_new;
+		snd_soc_write(sound_control_codec_ptr, WCD934X_CDC_RX1_RX_VOL_MIX_CTL, hp_l_gain);
+		snd_soc_write(sound_control_codec_ptr, WCD934X_CDC_RX1_RX_VOL_CTL, hp_l_gain);
+	}
+	if (hp_r_gain_new != hp_r_gain) {
+		hp_r_gain = hp_r_gain_new;
+		snd_soc_write(sound_control_codec_ptr, WCD934X_CDC_RX2_RX_VOL_MIX_CTL, hp_r_gain);
+		snd_soc_write(sound_control_codec_ptr, WCD934X_CDC_RX2_RX_VOL_CTL, hp_r_gain);
+	}
+
+}
+#endif
+
 #endif
 
 static int tavil_soc_codec_probe(struct snd_soc_codec *codec)
@@ -10228,6 +10282,9 @@ static int tavil_soc_codec_probe(struct snd_soc_codec *codec)
 
 #ifdef CONFIG_SOUND_CONTROL
 	sound_control_codec_ptr = codec;
+#ifdef CONFIG_UCI
+	uci_add_user_listener(uci_user_listener);
+#endif
 #endif
 
 	control = dev_get_drvdata(codec->dev->parent);
