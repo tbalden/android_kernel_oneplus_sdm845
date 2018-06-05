@@ -350,6 +350,8 @@ static void uci_sys_listener(void) {
 				uci_hbm_set(i);
 				last_hbm_mode = i;
 				break;
+			} else {
+				break;
 			}
 		}
 	}
