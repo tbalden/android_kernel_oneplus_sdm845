@@ -111,7 +111,7 @@ static void detect_sweep2sleep(int x, int y, bool st)
 		s2s_switch = 3;
 
 	//left->right
-	if (single_touch && ((firstx < 850 && !get_s2s_from_corner()) || firstx < 250) && (get_s2s_switch() & SWEEP_RIGHT)) {
+	if (single_touch && ((firstx < 850 && !get_s2s_from_corner()) || firstx < 200) && (get_s2s_switch() & SWEEP_RIGHT)) {
 		scr_on_touch=true;
 		prevx = firstx;
 		nextx = prevx + x_threshold_1;
@@ -140,7 +140,7 @@ static void detect_sweep2sleep(int x, int y, bool st)
 			}
 		}
 	//right->left
-	} else if (((firstx >= 140 && !get_s2s_from_corner()) || firstx >=800) && (get_s2s_switch() & SWEEP_LEFT)) {
+	} else if (((firstx >= 140 && !get_s2s_from_corner()) || firstx >=880) && (get_s2s_switch() & SWEEP_LEFT)) {
 		scr_on_touch=true;
 		prevx = firstx;
 		nextx = prevx - x_threshold_1;
