@@ -586,9 +586,13 @@ static bool check_for_block(struct wakeup_source *ws)
 		printk("Boeffla WL blocker: %s requested\n", ws->name);
 
 	// if there is no list of wakelocks to be blocked, exit without futher checking
+#ifdef CONFIG_UCI
+	if (!get_wakelock_blocker_enabled())
+		return false;
+#else
 	if (!wl_blocker_active)
 		return false;
-
+#endif
 	// only if ws structure is valid
 	if (ws)
 	{

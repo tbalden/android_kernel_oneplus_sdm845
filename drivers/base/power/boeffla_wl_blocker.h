@@ -21,3 +21,7 @@
 #define LENGTH_LIST_WL				255
 #define LENGTH_LIST_WL_DEFAULT		100
 #define LENGTH_LIST_WL_SEARCH		LENGTH_LIST_WL + LENGTH_LIST_WL_DEFAULT + 5
+
+#ifdef CONFIG_UCI
+extern bool get_wakelock_blocker_enabled(void);
+#endif
