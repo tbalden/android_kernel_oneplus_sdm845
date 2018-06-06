@@ -37,6 +37,10 @@
 #include <linux/printk.h>
 #include "boeffla_wl_blocker.h"
 
+#ifdef CONFIG_UCI
+#include <linux/uci/uci.h>
+#endif
+
 
 /*****************************************/
 // Variables
@@ -65,6 +69,22 @@ static void build_search_string(char *list1, char *list2)
 	else
 		wl_blocker_active = false;
 }
+
+#ifdef CONFIG_UCI
+bool uci_configured = false;
+bool uci_wl_blocker_active_status = false;
+
+bool get_wakelock_blocker_enabled(void) {
+	return uci_configured ? uci_wl_blocker_active_status : wl_blocker_active;
+}
+EXPORT_SYMBOL(get_wakelock_blocker_enabled);
+
+// registered user uci listener
+static void uci_user_listener(void) {
+	uci_wl_blocker_active_status = uci_get_user_property_int_mm("wl_blocker_active", 0, 0, 1);
+	uci_configured = true;
+}
+#endif
 
 
 /*****************************************/
@@ -213,6 +233,9 @@ static int boeffla_wl_blocker_init(void)
 	sprintf(list_wl_default, "%s", LIST_WL_DEFAULT);
 	build_search_string(list_wl_default, list_wl);
 
+#ifdef CONFIG_UCI
+	uci_add_user_listener(uci_user_listener);
+#endif
 	// Print debug info
 	printk("Boeffla WL blocker: driver version %s started\n", BOEFFLA_WL_BLOCKER_VERSION);
 
