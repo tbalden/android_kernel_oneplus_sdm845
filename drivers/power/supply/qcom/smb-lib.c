@@ -108,6 +108,9 @@ static int op_check_battery_temp(struct smb_charger *chg);
 				__func__, ##__VA_ARGS__);	\
 	} while (0)
 
+static unsigned int forced_current = 900;
+//module_param(forced_current, uint, S_IWUSR | S_IRUGO);
+
 static bool is_secure(struct smb_charger *chg, int addr)
 {
 	if (addr == SHIP_MODE_REG || addr == FREQ_CLK_DIV_REG)
@@ -1054,6 +1057,14 @@ int smblib_set_icl_current(struct smb_charger *chg, int icl_ua)
 	/* suspend and return if 25mA or less is requested */
 	if (icl_ua <= USBIN_25MA)
 		return smblib_set_usb_suspend(chg, true);
+
+#if 1
+	// if amperage is 500mA, and force enabled do the change...
+	if (icl_ua == 500000 && get_force_fast_charge() && forced_current) {
+		pr_info("%s [fastcharge] forced current to %d\n",__func__, forced_current);
+		return op_usb_icl_set(chg, forced_current * 1000);
+	}
+#endif
 
 	if (icl_ua == INT_MAX)
 		goto override_suspend_config;
@@ -3092,6 +3103,14 @@ int smblib_set_prop_sdp_current_max(struct smb_charger *chg,
 				    const union power_supply_propval *val)
 {
 	int rc = 0;
+
+#if 1
+	// if amperage is 500mA, and force enabled do the change...
+	if (val->intval == 500 && get_force_fast_charge() && forced_current) {
+		pr_info("%s [fastcharge] forced current to %d\n",__func__, forced_current);
+		return op_usb_icl_set(chg, forced_current * 1000);
+	}
+#endif
 
 	pr_err("set usb current_max=%d\n", val->intval);
 	if (!chg->pd_active) {
