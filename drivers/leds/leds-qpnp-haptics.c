@@ -1744,6 +1744,11 @@ void set_vibrate(int val)
 {
 	int rc;
 
+	int power_perc = uci_get_vibration_power_percentage();
+	pr_info("%s [CLEANSLATE] power_perc = %d\n",__func__,power_perc);
+
+	if (power_perc == 0) return;
+
 	if (val > gchip->max_play_time_ms)
 		return;
 
@@ -1793,6 +1798,12 @@ static ssize_t qpnp_haptics_store_activate(struct device *dev,
 		return count;
 
 	if (val) {
+#if 1
+		// if not notification duration and boosting, but power percentage is set to 0, skip activation altogether...
+		int power_perc = uci_get_vibration_power_percentage();
+		pr_info("%s [CLEANSLATE] power_perc = %d eval = %d\n",__func__,power_perc,(power_perc == 0 && (!notification_duration_detected || !smart_get_boost_on() || should_not_boost())));
+		if (power_perc == 0 && (!notification_duration_detected || !smart_get_boost_on() || should_not_boost())) return count;
+#endif
 		hrtimer_cancel(&chip->stop_timer);
 		if (is_sw_lra_auto_resonance_control(chip))
 			hrtimer_cancel(&chip->auto_res_err_poll_timer);
