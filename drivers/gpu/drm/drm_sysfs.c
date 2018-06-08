@@ -404,26 +404,66 @@ static void uci_hbm_set(int hbm_mode) {
 // params...
 bool hbm_switch = false;
 
-int last_hbm_mode = 0;
+int current_hbm_mode = 0;
 int lux_level = 0;
 
 int hbm_to_lux_limits[6] = {0,7000,10000,14000,19000,25000};
+
+
+static DEFINE_SPINLOCK(cfg_w_lock);
+bool break_current_transition = false;
+bool transition_in_progress = false;
+int to_value = 0;
+
+static void uci_hbm_transition_work_func(struct work_struct * uci_hbm_transition_work)
+{
+	int i = 0;
+	if (to_value!=current_hbm_mode) {
+		int step = (to_value - current_hbm_mode>0)?1:-1;
+		int max = abs(current_hbm_mode - to_value);
+		transition_in_progress = true;
+		pr_info("%s [CLEANSLATE] transition hbm... step: %d from: %d to: %d\n",__func__,step, current_hbm_mode, to_value);
+		for (i=0; i<max; i++) {
+			current_hbm_mode+=step;
+			uci_hbm_set(current_hbm_mode);
+			mdelay(80);
+			if (break_current_transition) {
+				break_current_transition = false;
+				break;
+			}
+		}
+		transition_in_progress = false;
+	}
+}
+static DECLARE_WORK(uci_hbm_transition_work, uci_hbm_transition_work_func);
+
+void uci_hbm_transition(int to) {
+	pr_info("%s [CLEANSLATE] transition hbm... to: %d\n",__func__, to);
+        spin_lock(&cfg_w_lock);
+	if (transition_in_progress) {
+		if (to_value == to) goto end;
+		break_current_transition = true;
+	}
+	to_value = to;
+	schedule_work(&uci_hbm_transition_work);
+end:
+        spin_unlock(&cfg_w_lock);
+}
+
 
 // registered sys uci listener
 static void uci_sys_listener(void) {
 	int i = 0;
         lux_level = uci_get_sys_property_int_mm("lux_level", lux_level, 0, 200000);
 	if (!hbm_switch) {
-		if (last_hbm_mode != 0) {
-			uci_hbm_set(0);
+		if (current_hbm_mode != 0) {
+			uci_hbm_transition(0);
 		}
-		last_hbm_mode = 0;
 	} else {
 	for (i=5;i>=0;i--) {
 		if (lux_level>=hbm_to_lux_limits[i]) {
-			if (i!=last_hbm_mode) {
-				uci_hbm_set(i);
-				last_hbm_mode = i;
+			if (i!=current_hbm_mode) {
+				uci_hbm_transition(i);
 				break;
 			} else {
 				break;
