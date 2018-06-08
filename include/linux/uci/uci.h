@@ -3,10 +3,16 @@
 
 #define UCI_INVALID_INT -999999
 
+// user config file to read data coming from user space
 #define UCI_USER_FILE "/storage/emulated/0/uci_user.cfg"
+// sys file to read from user space
 #define UCI_SYS_FILE "/storage/emulated/0/uci_sys.cfg"
+// file to write data from kernel side to unelevated access
+#define UCI_KERNEL_FILE "/storage/emulated/0/uci_kernel.out"
+
 #define UCI_USER_FILE_END "uci_user.cfg"
 #define UCI_SYS_FILE_END "uci_sys.cfg"
+#define UCI_KERNEL_FILE_END "uci_kernel.out"
 
 #define UCI_HOSTS_FILE "/hosts"
 #define UCI_HOSTS_FILE_END "hosts"
@@ -37,5 +43,8 @@ extern const char* uci_get_sys_property_str(const char* property, const char* de
 extern void uci_add_sys_listener(void (*f)(void));
 /** add change listener to user cfg*/
 extern void uci_add_user_listener(void (*f)(void));
+
+/** write operations */
+extern void write_uci_out(void);
 
 #endif /* __UCI_H__ */

@@ -112,6 +112,41 @@ char *sys_cfg_values[MAX_PARAMS];
 static int should_not_parse_next_close = 0;
 
 static DEFINE_SPINLOCK(cfg_rw_lock);
+static DEFINE_SPINLOCK(cfg_w_lock);
+
+// --- write start
+
+void write_uci_krnl_cfg_file(void) {
+	// locking
+	struct file*fp = NULL;
+	char *to_write = "content\n";
+	int rc = 0;
+	spin_lock(&cfg_w_lock);
+
+	pr_info("%s [CLEANSLATE] uci writing file kernel out...\n",__func__);
+	fp=uci_fopen (UCI_KERNEL_FILE, O_WRONLY|O_CREAT|O_TRUNC, 0);
+	if (fp) {
+		rc = uci_fwrite(fp,0,to_write,strlen(to_write));
+		if (rc) pr_info("%s [CLEANSLATE] uci error file kernel out...%d\n",__func__,rc);
+		uci_fclose(fp);
+		pr_info("%s [CLEANSLATE] uci closed file kernel out...\n",__func__);
+	}
+	spin_unlock(&cfg_w_lock);
+	// UNLOCK
+}
+
+static void write_uci_out_work_func(struct work_struct * write_uci_out_work)
+{
+	write_uci_krnl_cfg_file();
+}
+static DECLARE_WORK(write_uci_out_work, write_uci_out_work_func);
+
+void write_uci_out(void) {
+	schedule_work(&write_uci_out_work);
+}
+EXPORT_SYMBOL(write_uci_out);
+
+// --- write end
 
 // Parsing
 int parse_uci_cfg_file(const char *file_name, bool sys) {
@@ -251,6 +286,7 @@ bool is_uci_path(const char *file_name) {
 	if (!file_name) return false;
 	if (!strcmp(file_name, UCI_USER_FILE)) return true;
 	if (!strcmp(file_name, UCI_SYS_FILE)) return true;
+	if (!strcmp(file_name, UCI_KERNEL_FILE)) return true;
 	if (!strcmp(file_name, UCI_HOSTS_FILE)) return true;
 	return false;
 }
@@ -260,6 +296,7 @@ bool is_uci_file(const char *file_name) {
 	if (!file_name) return false;
 	if (!strcmp(file_name, UCI_USER_FILE_END)) return true;
 	if (!strcmp(file_name, UCI_SYS_FILE_END)) return true;
+	if (!strcmp(file_name, UCI_KERNEL_FILE_END)) return true;
 	if (!strcmp(file_name, UCI_HOSTS_FILE_END)) return true;
 	return false;
 }
