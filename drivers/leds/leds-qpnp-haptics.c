@@ -1207,6 +1207,7 @@ static int qpnp_haptics_play_mode_config(struct hap_chip *chip)
 
 #if 1
 static u64 stored_vmax_mv = 0;
+static bool override_power_set = false;
 #endif
 
 /* configuration api for max voltage */
@@ -1232,7 +1233,7 @@ static int qpnp_haptics_vmax_config(struct hap_chip *chip, int vmax_mv,
 		pr_info("%s [CLEANSLATE] boosting - modified vmax %d\n",__func__,vmax_mv);
 	} else {
 		stored_vmax_mv = vmax_mv;
-		if (power_set) {
+		if (power_set && !override_power_set) {
 			vmax_mv = (vmax_mv * power_perc) / 100;
 			pr_info("%s [CLEANSLATE] modified vmax %d\n",__func__,vmax_mv);
 		}
@@ -1348,7 +1349,7 @@ static int qpnp_haptics_auto_mode_config(struct hap_chip *chip, int time_ms)
 
 	old_ares_mode = chip->ares_cfg.auto_res_mode;
 	old_play_mode = chip->play_mode;
-	pr_debug("auto_mode, time_ms: %d\n", time_ms);
+	pr_info("%s [CLEANSLATE] auto_mode, time_ms: %d\n", __func__,time_ms);
 	if (time_ms <= 20) {
 		if (chip->test_mode) {
 			wave_samp[0] = 0x34;
@@ -1773,6 +1774,38 @@ void set_vibrate(int val)
 
 }
 EXPORT_SYMBOL(set_vibrate);
+void set_vibrate_boosted(int val)
+{
+	int rc;
+	override_power_set = smart_get_boost_on();
+
+	if (val > gchip->max_play_time_ms)
+		return;
+
+	mutex_lock(&gchip->param_lock);
+	rc = qpnp_haptics_auto_mode_config(gchip, val);
+	if (rc < 0) {
+		pr_err("Unable to do auto mode config\n");
+		mutex_unlock(&gchip->param_lock);
+		return;
+	}
+
+	qpnp_haptics_vmax_config(gchip,VMAX_MV_NOTIFICATION,false);
+
+	gchip->play_time_ms = val;
+	mutex_unlock(&gchip->param_lock);
+
+	hrtimer_cancel(&gchip->stop_timer);
+	if (is_sw_lra_auto_resonance_control(gchip))
+		hrtimer_cancel(&gchip->auto_res_err_poll_timer);
+	cancel_work_sync(&gchip->haptics_work);
+
+	atomic_set(&gchip->state, 1);
+	schedule_work(&gchip->haptics_work);
+
+	override_power_set = false;
+}
+EXPORT_SYMBOL(set_vibrate_boosted);
 #endif
 
 static ssize_t qpnp_haptics_show_activate(struct device *dev,
