@@ -832,7 +832,7 @@ static void fpf_home_button_func(struct work_struct * fpf_presspwr_work) {
 	if (break_home_button_func_work == 0) {
 		job_done_in_home_button_func_work = 1;
 		pr_info("fpf %s home 1 \n",__func__);
-		if (get_fpf_key()<2) {
+		if (get_fpf_key()!=KEY_KPDOT) {
 			input_event(fpf_pwrdev, EV_KEY, get_fpf_key(), 1);
 			input_event(fpf_pwrdev, EV_SYN, 0, 0);
 			msleep(1);
@@ -970,7 +970,7 @@ static enum alarmtimer_restart triple_tap_rtc_callback(struct alarm *al, ktime_t
 {
 	triple_tap_wait = false;
 // home button simulation
-	if (get_fpf_key()<2) {
+	if (get_fpf_key()!=KEY_KPDOT) {
 	input_report_key(fpf_pwrdev, get_fpf_key(), 1);
 	input_sync(fpf_pwrdev);
 	input_report_key(fpf_pwrdev, get_fpf_key(), 0);
@@ -1100,7 +1100,7 @@ static bool fpf_input_filter(struct input_handle *handle,
 							if (last_short_tap_diff > (DT_WAIT_PERIOD_BASE_VALUE + 9 + get_doubletap_wait_period()*2) * JIFFY_MUL) { // long doubletap
 								fpf_pwrtrigger(0,__func__);
 							} else { // short doubletap
-								if (get_fpf_key()<2) {
+								if (get_fpf_key()!=KEY_KPDOT) {
 								// home button simulation
 								input_report_key(fpf_pwrdev, get_fpf_key(), 1);
 								input_sync(fpf_pwrdev);
@@ -1141,7 +1141,7 @@ static bool fpf_input_filter(struct input_handle *handle,
 				fingerprint_pressed = 0;
 				// if job was all finished inside the work func, we need to call the HOME = 0 release event here, as we couldn't signal to the work to do it on it's own
 				if (job_done_in_home_button_func_work) {
-						if (get_fpf_key()<2) {
+						if (get_fpf_key()!=KEY_KPDOT) {
 						pr_info("fpf %s do key_home 0 sync as job was done, but without the possible signalling for HOME 0\n",__func__);
 						input_report_key(fpf_pwrdev, get_fpf_key(), 0);
 						input_sync(fpf_pwrdev); 
