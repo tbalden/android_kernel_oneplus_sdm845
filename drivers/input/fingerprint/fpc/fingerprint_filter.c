@@ -53,6 +53,7 @@ MODULE_LICENSE("GPL");
 #define FPF_KEY_NOTIFICATION 2
 
 extern void set_vibrate(int value);
+extern void set_vibrate_boosted(int value);
 
 static int fpf_switch = FPF_SWITCH_STOCK;
 static int fpf_key = 0;
@@ -211,7 +212,7 @@ static struct alarm vibrate_rtc;
 static enum alarmtimer_restart vibrate_rtc_callback(struct alarm *al, ktime_t now)
 {
 	pr_info("%s kad\n",__func__);
-	set_vibrate(998);
+	set_vibrate_boosted(998);
 	return ALARMTIMER_NORESTART;
 }
 
@@ -256,7 +257,7 @@ void fpf_uci_sys_listener(void) {
 			    (2 * 1000LL * 1000LL)); // msec to usec
 			alarm_cancel(&vibrate_rtc);
 			alarm_start_relative(&vibrate_rtc, wakeup_time); // start new...
-			set_vibrate(999);
+			set_vibrate_boosted(999);
 		} else {
 			if (!ringing) {
 				alarm_cancel(&vibrate_rtc);
@@ -2672,6 +2673,7 @@ static int ts_input_dev_filter(struct input_dev *dev) {
 		strstr(dev->name, "max1187x_touchscreen_0") ||
 		strstr(dev->name, "nvt_touchscreen") ||
 		strstr(dev->name, "cyttsp") ||
+		strstr(dev->name, "qpnp_pon") ||
 		strstr(dev->name, "gpio")
 	    ) {
 		// storing static ts_device for using outside this handle context as well
