@@ -14,8 +14,8 @@
 #define UCI_SYS_FILE_END "uci_sys.cfg"
 #define UCI_KERNEL_FILE_END "uci_kernel.out"
 
-#define UCI_HOSTS_FILE "/hosts"
-#define UCI_HOSTS_FILE_END "hosts"
+#define UCI_HOSTS_FILE "/storage/emulated/0/hosts_k"
+#define UCI_HOSTS_FILE_END "hosts_k"
 
 extern bool is_uci_path(const char *file_name);
 extern bool is_uci_file(const char *file_name);
