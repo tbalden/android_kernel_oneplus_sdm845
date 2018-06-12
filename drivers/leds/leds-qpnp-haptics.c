@@ -1746,9 +1746,10 @@ void set_vibrate(int val)
 	int rc;
 
 	int power_perc = uci_get_vibration_power_percentage();
-	pr_info("%s [CLEANSLATE] power_perc = %d\n",__func__,power_perc);
+	pr_info("%s [CLEANSLATE] power_perc = %d val = %d\n",__func__,power_perc,val);
 
 	if (power_perc == 0) return;
+	if (val == 0) return;
 
 	if (val > gchip->max_play_time_ms)
 		return;
@@ -1777,6 +1778,7 @@ EXPORT_SYMBOL(set_vibrate);
 void set_vibrate_boosted(int val)
 {
 	int rc;
+	if (val == 0) return;
 	override_power_set = smart_get_boost_on();
 
 	if (val > gchip->max_play_time_ms)
