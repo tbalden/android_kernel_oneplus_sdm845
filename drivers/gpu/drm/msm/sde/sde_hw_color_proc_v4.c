@@ -14,6 +14,10 @@
 #include "sde_hw_color_proc_common_v4.h"
 #include "sde_hw_color_proc_v4.h"
 
+#if 1
+#include <linux/uci/uci.h>
+#endif
+
 static int sde_write_3d_gamut(struct sde_hw_blk_reg_map *hw,
 		struct drm_msm_3d_gamut *payload, u32 base,
 		u32 *opcode)
@@ -184,6 +188,11 @@ void sde_setup_dspp_pccv4(struct sde_hw_dspp *ctx, void *cfg)
 	}
 #if 1
 	pr_info("%s [CLEANSLATE] kcal setup... \n",__func__);
+        enable = uci_get_user_property_int_mm("kcal_enable", enable, 0, 1);
+        r = uci_get_user_property_int_mm("kcal_red", r, 0, 256);
+        g = uci_get_user_property_int_mm("kcal_green", g, 0, 256);
+        b = uci_get_user_property_int_mm("kcal_blue", b, 0, 256);
+        min = uci_get_user_property_int_mm("kcal_min", min, 0, 256);
 	if (r<min) r= min;
 	if (g<min) g= min;
 	if (b<min) b= min;
