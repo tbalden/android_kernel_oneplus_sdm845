@@ -49,7 +49,9 @@ static void _setup_dspp_ops(struct sde_hw_dspp *c, unsigned long features)
 
 	if (!c || !c->cap || !c->cap->sblk)
 		return;
-
+#if 1
+	pr_info("%s features: %lu\n",__func__,features);
+#endif
 	for (i = 0; i < SDE_DSPP_MAX; i++) {
 		if (!test_bit(i, &features))
 			continue;
@@ -57,16 +59,40 @@ static void _setup_dspp_ops(struct sde_hw_dspp *c, unsigned long features)
 		case SDE_DSPP_PCC:
 			if (c->cap->sblk->pcc.version ==
 				(SDE_COLOR_PROCESS_VER(0x1, 0x7)))
+#if 1
+				{
+				static int count = 0;
+				pr_info("%s [CLEANSLATE] kcal registering sde_hw_dspp pccv17. COUNT: %d \n",__func__,count++);
+#endif
 				c->ops.setup_pcc = sde_setup_dspp_pcc_v1_7;
+#if 1
+				}
+#endif
 			else if (c->cap->sblk->pcc.version ==
 					(SDE_COLOR_PROCESS_VER(0x4, 0x0))) {
 				ret = reg_dmav1_init_dspp_op_v4(i, c->idx);
 				if (!ret)
+#if 1
+				{
+					static int count = 0;
+					pr_info("%s [CLEANSLATE] kcal registering sde_hw_dspp dmav1 pccv4. COUNT: %d \n",__func__,count++);
+#endif
 					c->ops.setup_pcc =
 						reg_dmav1_setup_dspp_pccv4;
+#if 1
+				}
+#endif
 				else
+#if 1
+				{
+					static int count = 0;
+					pr_info("%s [CLEANSLATE] kcal registering sde_hw_dspp pccv4. COUNT: %d \n",__func__,count++);
+#endif
 					c->ops.setup_pcc =
 						sde_setup_dspp_pccv4;
+#if 1
+				}
+#endif
 			}
 			break;
 		case SDE_DSPP_HSIC:
