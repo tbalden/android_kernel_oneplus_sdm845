@@ -962,6 +962,10 @@ static void _setup_layer_ops(struct sde_hw_pipe *c,
 		/* TODO: add version based assignment here as inline or macro */
 		if (c->cap->sblk->hsic_blk.version ==
 			(SDE_COLOR_PROCESS_VER(0x1, 0x7))) {
+#if 1
+                        static int count = 0;
+                        pr_info("%s [CLEANSLATE] kcal registering sde_hw_pipe. COUNT: %d \n",__func__,count++);
+#endif
 			c->ops.setup_pa_hue = sde_setup_pipe_pa_hue_v1_7;
 			c->ops.setup_pa_sat = sde_setup_pipe_pa_sat_v1_7;
 			c->ops.setup_pa_val = sde_setup_pipe_pa_val_v1_7;
