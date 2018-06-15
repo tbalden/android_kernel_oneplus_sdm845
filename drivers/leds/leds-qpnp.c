@@ -570,6 +570,21 @@ static u32 kpdbl_master_period_us;
 DECLARE_BITMAP(kpdbl_leds_in_use, NUM_KPDBL_LEDS);
 static bool is_kpdbl_master_turn_on;
 
+#if 1
+static int get_rgb_pulse(void) {
+        return uci_get_user_property_int_mm("bln_rgb_pulse", 1, 0, 1);
+}
+static int get_rgb_light_level(void) {
+        return uci_get_user_property_int_mm("bln_rgb_light_level", 0, 0, 20)+1;
+}
+static int get_rgb_charge_light_level(void) {
+        return uci_get_user_property_int_mm("bln_rgb_charge_light_level", 0, 0, 20)+1;
+}
+//[00 05 0a 0f 14 1d 28 32 3c 4b 64]
+int no_pulse[11] = {0,0,0,0,0,0,0,0,255,0,0};
+int pulse[11] = {0,0x5,0xa,0xf,0x14,0x1d,0x28,0x32,0x3c,0x4b,0x64};
+#endif
+
 static int
 qpnp_led_masked_write(struct qpnp_led_data *led, u16 addr, u8 mask, u8 val)
 {
@@ -1793,6 +1808,9 @@ static void qpnp_led_set(struct led_classdev *led_cdev,
 				enum led_brightness value)
 {
 	struct qpnp_led_data *led;
+#if 1
+	int div = get_rgb_charge_light_level();
+#endif
 
 	led = container_of(led_cdev, struct qpnp_led_data, cdev);
 	if (value < LED_OFF) {
@@ -1802,7 +1820,10 @@ static void qpnp_led_set(struct led_classdev *led_cdev,
 
 	if (value > led->cdev.max_brightness)
 		value = led->cdev.max_brightness;
-
+#if 1
+		if (div == 21) value = LED_OFF;
+			else value /= div;
+#endif
 	led->cdev.brightness = value;
 	if (led->in_order_command_processing)
 		queue_work(led->workqueue, &led->work);
@@ -2654,14 +2675,6 @@ restore:
 	return ret;
 }
 
-#if 1
-static int get_rgb_pulse(void) {
-        return uci_get_user_property_int_mm("bln_rgb_pulse", 1, 0, 1);
-}
-//[00 05 0a 0f 14 1d 28 32 3c 4b 64]
-int no_pulse[11] = {0,0,0,0,0,0,0,0,255,0,0};
-int pulse[11] = {0,0x5,0xa,0xf,0x14,0x1d,0x28,0x32,0x3c,0x4b,0x64};
-#endif
 
 static void led_blink(struct qpnp_led_data *led,
 			struct pwm_config_data *pwm_cfg)
@@ -2696,20 +2709,22 @@ static void led_blink(struct qpnp_led_data *led,
 				|| led->id == QPNP_ID_RGB_BLUE) {
 #if 1
 			if (get_rgb_pulse()) {
+				int div = get_rgb_light_level();
 				int i;
 		                for (i = 0; i < pwm_cfg->duty_cycles->num_duty_pcts; i++)
 	                	        pwm_cfg->duty_cycles->duty_pcts[i] =
-    		                	        (int) pulse[i];
+    		                	        (int) pulse[i] / div;
 				pwm_cfg->lut_params.ramp_step_ms = 100;
 				pwm_cfg->lut_params.lut_pause_lo = 2000;
 //        qcom,ramp-step-ms = <100>;
 //        qcom,pause-lo = <2000>;
 
 			} else {
+				int div = get_rgb_light_level();
 				int i;
 		                for (i = 0; i < pwm_cfg->duty_cycles->num_duty_pcts; i++)
 	                	        pwm_cfg->duty_cycles->duty_pcts[i] =
-    		                	        (int) no_pulse[i];
+    		                	        (int) no_pulse[i] / div;
 				pwm_cfg->lut_params.ramp_step_ms = 50;
 				pwm_cfg->lut_params.lut_pause_lo = 1000;
 			}
