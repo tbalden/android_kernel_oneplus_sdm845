@@ -20,8 +20,13 @@ enum notif_smart_level_type {
 extern void smart_set_last_user_activity_time(void);
 extern int smart_get_notification_level(int notif_type);
 
+// screen state queries
 extern bool ntf_is_screen_on(void);
 extern bool ntf_is_screen_early_on(void);
 extern bool ntf_is_screen_early_off(void);
+
+// charge callbacks to notify ntf - call it from battery/policy drivers
+extern void ntf_set_charge_state(bool on);
+extern void ntf_set_charge_level(int level);
 
 #endif /* __NOTIFICATION_H__ */
