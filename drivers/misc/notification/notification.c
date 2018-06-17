@@ -35,6 +35,8 @@
 #define DRIVER_DESCRIPTION "uci notifications driver"
 #define DRIVER_VERSION "1.0"
 
+#define NTF_D_LOG
+
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESCRIPTION);
 MODULE_VERSION(DRIVER_VERSION);
@@ -47,6 +49,8 @@ struct notifier_block *uci_ntf_msm_drm_notif;
 #endif
 
 static bool screen_on = false, screen_on_early = false, screen_off_early = false;
+
+// ======= SCREEN ON/OFF
 
 bool ntf_is_screen_on(void) {
 	return screen_on;
@@ -61,6 +65,30 @@ bool ntf_is_screen_early_off(void) {
 }
 EXPORT_SYMBOL(ntf_is_screen_early_off);
 
+// ======= CHARGE
+
+bool is_charging = false;
+void ntf_set_charge_state(bool on) {
+#ifdef NTF_D_LOG
+	pr_info("%s [cleanslate] charge state = %d\n",__func__,on);
+#endif
+	if (on!=is_charging) {
+// change handle
+	}
+	is_charging = on;
+}
+EXPORT_SYMBOL(ntf_set_charge_state);
+int charge_level = -1;
+void ntf_set_charge_level(int level) {
+#ifdef NTF_D_LOG
+	pr_info("%s [cleanslate] level = %d\n",__func__,level);
+#endif
+	if (level!=charge_level) {
+// change handle
+	}
+	charge_level = level;
+}
+EXPORT_SYMBOL(ntf_set_charge_level);
 
 
 #if defined(CONFIG_FB)
