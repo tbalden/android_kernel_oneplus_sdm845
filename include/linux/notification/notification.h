@@ -29,4 +29,7 @@ extern bool ntf_is_screen_early_off(void);
 extern void ntf_set_charge_state(bool on);
 extern void ntf_set_charge_level(int level);
 
+/** add change listener */
+extern void ntf_add_listener(void (*f)(char* event, int num_param, char* str_param));
+
 #endif /* __NOTIFICATION_H__ */
