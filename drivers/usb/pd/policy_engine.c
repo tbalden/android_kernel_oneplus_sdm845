@@ -29,6 +29,10 @@
 #include <linux/usb/usbpd.h>
 #include "usbpd.h"
 
+#ifdef CONFIG_UCI_NOTIFICATIONS
+#include <linux/notification/notification.h>
+#endif
+
 /* To start USB stack for USB3.1 complaince testing */
 static bool usb_compliance_mode;
 module_param(usb_compliance_mode, bool, 0644);
@@ -2912,6 +2916,7 @@ static inline const char *src_current(enum power_supply_typec_mode typec_mode)
 	}
 }
 
+
 static int psy_changed(struct notifier_block *nb, unsigned long evt, void *ptr)
 {
 	struct usbpd *pd = container_of(nb, struct usbpd, psy_nb);
@@ -2928,7 +2933,10 @@ static int psy_changed(struct notifier_block *nb, unsigned long evt, void *ptr)
 		usbpd_err(&pd->dev, "Unable to read USB TYPEC_MODE: %d\n", ret);
 		return ret;
 	}
-
+#if 0
+		usbpd_info(&pd->dev, "%s log... \n",
+				__func__);
+#endif
 	typec_mode = val.intval;
 
 	ret = power_supply_get_property(pd->usb_psy,
@@ -2942,8 +2950,17 @@ static int psy_changed(struct notifier_block *nb, unsigned long evt, void *ptr)
 	/* Don't proceed if PE_START=0 as other props may still change */
 	if (!val.intval && !pd->pd_connected &&
 			typec_mode != POWER_SUPPLY_TYPEC_NONE)
+#ifdef CONFIG_UCI_NOTIFICATIONS
+	{
+		usbpd_info(&pd->dev, "%s log typec_mode %d... \n",
+				__func__, typec_mode);
+		ntf_set_charge_state(true); 
+		// still report charge...certain chargers are failing here and won't run the code below
+#endif
 		return 0;
-
+#ifdef CONFIG_UCI_NOTIFICATIONS
+	}
+#endif
 	ret = power_supply_get_property(pd->usb_psy,
 			POWER_SUPPLY_PROP_PRESENT, &val);
 	if (ret) {
@@ -3003,7 +3020,9 @@ static int psy_changed(struct notifier_block *nb, unsigned long evt, void *ptr)
 			usbpd_dbg(&pd->dev, "Ignoring disconnect due to PR swap\n");
 			return 0;
 		}
-
+#ifdef CONFIG_UCI_NOTIFICATIONS
+		ntf_set_charge_state(false);
+#endif
 		pd->current_pr = PR_NONE;
 		break;
 
@@ -3014,6 +3033,9 @@ static int psy_changed(struct notifier_block *nb, unsigned long evt, void *ptr)
 		usbpd_info(&pd->dev, "Type-C Source (%s) connected\n",
 				src_current(typec_mode));
 
+#ifdef CONFIG_UCI_NOTIFICATIONS
+		ntf_set_charge_state(true);
+#endif
 		/* if waiting for SinkTxOk to start an AMS */
 		if (pd->spec_rev == USBPD_REV_30 &&
 			typec_mode == POWER_SUPPLY_TYPEC_SOURCE_HIGH &&

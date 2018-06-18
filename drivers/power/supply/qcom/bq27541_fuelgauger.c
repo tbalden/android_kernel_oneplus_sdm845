@@ -41,6 +41,10 @@
 
 #include <linux/power/oem_external_fg.h>
 
+#ifdef CONFIG_UCI_NOTIFICATIONS
+#include <linux/notification/notification.h>
+#endif
+
 #define CONFIG_GAUGE_BQ27411		1
 #define DEVICE_TYPE_BQ27541		0x0541
 #define DEVICE_TYPE_BQ27411		0x0421
@@ -766,7 +770,9 @@ struct bq27541_device_info *di, int suspend_time_ms)
 		}
 		if (soc_pre != soc)
 			pr_err("bq27541_battery_soc = %d\n", soc);
-
+#ifdef CONFIG_UCI_NOTIFICATIONS
+		ntf_set_charge_level(soc);
+#endif
 		soc_pre = soc;
 	} else {
 		if (di->soc_pre)
