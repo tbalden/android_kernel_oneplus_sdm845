@@ -1,4 +1,7 @@
 /* Copyright (c) 2012-2015, 2017, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018 Pal Zoltan Illes. All rights reserved.
+ * - Chromatic Charging LED
+ * - Notification led settings for UCI
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -28,8 +31,9 @@
 #include <linux/regulator/consumer.h>
 #include <linux/delay.h>
 
-#if 1
+#ifdef CONFIG_UCI
 #include <linux/uci/uci.h>
+#include <linux/notification/notification.h>
 #endif
 
 #define WLED_MOD_EN_REG(base, n)	(base + 0x60 + n*0x10)
@@ -255,6 +259,19 @@
 #define NUM_KPDBL_LEDS			4
 #define KPDBL_MASTER_BIT_INDEX		0
 /*taokai@bsp add for indicator shows when Mobile phone completely shut down*/
+
+#ifdef CONFIG_UCI_NOTIFICATIONS
+bool charging_led = false;
+bool charging_led_full = false;
+bool charging_led_dash = false;
+#endif
+#ifdef CONFIG_UCI
+static struct qpnp_led_data *led_r;
+static struct qpnp_led_data *led_g;
+static struct qpnp_led_data *led_b;
+int last_level = -1;
+#endif
+
 static u8	shutdown_enable = 0;
 
 /**
@@ -570,7 +587,7 @@ static u32 kpdbl_master_period_us;
 DECLARE_BITMAP(kpdbl_leds_in_use, NUM_KPDBL_LEDS);
 static bool is_kpdbl_master_turn_on;
 
-#if 1
+#ifdef CONFIG_UCI
 static int get_rgb_pulse(void) {
         return uci_get_user_property_int_mm("bln_rgb_pulse", 1, 0, 1);
 }
@@ -580,6 +597,10 @@ static int get_rgb_light_level(void) {
 static int get_rgb_charge_light_level(void) {
         return uci_get_user_property_int_mm("bln_rgb_charge_light_level", 0, 0, 20)+1;
 }
+static int get_rgb_batt_colored(void) {
+        return uci_get_user_property_int_mm("bln_rgb_batt_colored", 0, 0, 1);
+}
+
 //[00 05 0a 0f 14 1d 28 32 3c 4b 64]
 int no_pulse[11] = {0,0,0,0,0,0,0,0,255,0,0};
 int pulse[11] = {0,0x5,0xa,0xf,0x14,0x1d,0x28,0x32,0x3c,0x4b,0x64};
@@ -1808,19 +1829,53 @@ static void qpnp_led_set(struct led_classdev *led_cdev,
 				enum led_brightness value)
 {
 	struct qpnp_led_data *led;
-#if 1
+#ifdef CONFIG_UCI
 	int div = get_rgb_charge_light_level();
 #endif
-
 	led = container_of(led_cdev, struct qpnp_led_data, cdev);
 	if (value < LED_OFF) {
 		dev_err(&led->pdev->dev, "Invalid brightness value\n");
 		return;
 	}
 
+#ifdef CONFIG_UCI
+	if (value == LED_OFF) {
+		if (led->id==led_b->id) {
+			charging_led_dash = false;
+		}
+		if (led->id==led_g->id) {
+			charging_led_full = false;
+		}
+		if (led->id==led_r->id) {
+			charging_led = false;
+		}
+	} else {
+		charging_led = true;
+		if (led->id==led_b->id) {
+			charging_led_dash = true;
+			last_level = -1;
+		} else {
+			charging_led_dash = false;
+		}
+		if (led->id==led_g->id) {
+			charging_led_full = true;
+			last_level = -1;
+		} else {
+			charging_led_full = false;
+		}
+		if (led->id==led_r->id) {
+			charging_led = true;
+			last_level = -1;
+		} else {
+			charging_led = false;
+		}
+	}
+	pr_info("%s led set id: %d val: %d charging_led %d dash %d full %d \n",__func__,led->id,value,charging_led,charging_led_dash,charging_led_full);
+#endif
+
 	if (value > led->cdev.max_brightness)
 		value = led->cdev.max_brightness;
-#if 1
+#ifdef CONFIG_UCI
 		if (div == 21) value = LED_OFF;
 			else value /= div;
 #endif
@@ -1830,6 +1885,44 @@ static void qpnp_led_set(struct led_classdev *led_cdev,
 	else
 		schedule_work(&led->work);
 }
+#ifdef CONFIG_UCI
+static void qpnp_charge_level_set_rgb(int level) {
+	int div = get_rgb_charge_light_level();
+	int brightness_green = level*255/130; // div by 130 to get in 0-200 level only
+	int brightness_main = 155+(100-(level*100/100));
+	if (charging_led_dash) {
+		brightness_green = level*255/120;
+		brightness_main = 15+(240-(level*240/100));
+	}
+	pr_info("%s charge level calc green %d main %d chrg led %d chrg dash: %d \n",__func__,brightness_green,brightness_main,charging_led,charging_led_dash);
+	if (charging_led || charging_led_dash) {
+		{
+		struct qpnp_led_data *led = charging_led?led_g:led_g;
+		int value = brightness_green;
+		if (div == 21) value = LED_OFF;
+			else value /= div;
+		led->cdev.brightness = value;
+		if (led->in_order_command_processing)
+			queue_work(led->workqueue, &led->work);
+		else
+			schedule_work(&led->work);
+		}
+	}
+	if (charging_led || charging_led_dash) {
+		{
+		struct qpnp_led_data *led = charging_led?led_r:led_b;
+		int value = brightness_main;
+		if (div == 21) value = LED_OFF;
+			else value /= div;
+		led->cdev.brightness = value;
+		if (led->in_order_command_processing)
+			queue_work(led->workqueue, &led->work);
+		else
+			schedule_work(&led->work);
+		}
+	}
+}
+#endif
 
 static void __qpnp_led_work(struct qpnp_led_data *led,
 				enum led_brightness value)
@@ -2707,7 +2800,11 @@ static void led_blink(struct qpnp_led_data *led,
 		qpnp_pwm_init(pwm_cfg, led->pdev, led->cdev.name);
 		if (led->id == QPNP_ID_RGB_RED || led->id == QPNP_ID_RGB_GREEN
 				|| led->id == QPNP_ID_RGB_BLUE) {
-#if 1
+#ifdef CONFIG_UCI
+			charging_led = false;
+			charging_led_full = false;
+			charging_led_dash = false;
+
 			if (get_rgb_pulse()) {
 				int div = get_rgb_light_level();
 				int i;
@@ -3141,7 +3238,6 @@ static int qpnp_gpio_init(struct qpnp_led_data *led)
 
 	return 0;
 }
-
 static int qpnp_led_initialize(struct qpnp_led_data *led)
 {
 	int rc = 0;
@@ -3163,6 +3259,11 @@ static int qpnp_led_initialize(struct qpnp_led_data *led)
 	case QPNP_ID_RGB_RED:
 	case QPNP_ID_RGB_GREEN:
 	case QPNP_ID_RGB_BLUE:
+#ifdef CONFIG_UCI
+		if (led->id == QPNP_ID_RGB_RED) led_r = led;
+		if (led->id == QPNP_ID_RGB_GREEN) led_g = led;
+		if (led->id == QPNP_ID_RGB_BLUE) led_b = led;
+#endif
 		rc = qpnp_rgb_init(led);
 		if (rc)
 			dev_err(&led->pdev->dev,
@@ -3967,6 +4068,34 @@ static int qpnp_get_config_gpio(struct qpnp_led_data *led,
 err_config_gpio:
 	return rc;
 }
+#ifdef CONFIG_UCI_NOTIFICATIONS
+bool charging = false;
+static int test_level = 0;
+static bool test = false;
+static void ntf_listener(char* event, int num_param, char* str_param) {
+	pr_info("%s leds_qpnp ntf listener event %s %d %s\n",__func__,event,num_param,str_param);
+	if (!strcmp(event,"charge_level")) {
+		if ((charging_led || charging_led_dash) && charging) {
+			if (test) num_param = test_level;
+			// set charge color
+			if (last_level!=num_param) {
+				if (get_rgb_batt_colored()) {
+					qpnp_charge_level_set_rgb(num_param);
+				}
+			}
+			last_level = num_param;
+		}
+	} else
+	if (!strcmp(event,"charge_state")) {
+		charging = !!num_param;
+		if (!charging) {
+			last_level = -1;
+			test_level+=10;
+			if (test_level>100) test_level = 0;
+		}
+	}
+}
+#endif
 
 static int qpnp_leds_probe(struct platform_device *pdev)
 {
@@ -4239,6 +4368,9 @@ static int qpnp_leds_probe(struct platform_device *pdev)
 		parsed_leds++;
 	}
 	dev_set_drvdata(&pdev->dev, led_array);
+#ifdef CONFIG_UCI_NOTIFICATIONS
+	ntf_add_listener(ntf_listener);
+#endif
 	return 0;
 
 fail_id_check:
