@@ -48,6 +48,27 @@ struct notifier_block *uci_ntf_fb_notifier;
 struct notifier_block *uci_ntf_msm_drm_notif;
 #endif
 
+// listeners
+
+static void (*ntf_listeners[100])(char* event, int num_param, char* str_param);
+static int ntf_listener_counter = 0;
+
+static void ntf_notify_listeners(char* event, int num_param, char* str_param) {
+	int i =0;
+	for (;i<ntf_listener_counter;i++) {
+		(*ntf_listeners[i])(event,num_param,str_param);
+	}
+}
+
+void ntf_add_listener(void (*f)(char* event, int num_param, char* str_param)) {
+	if (ntf_listener_counter<100) {
+		ntf_listeners[ntf_listener_counter++] = f;
+	} else {
+		// error;
+	}
+}
+EXPORT_SYMBOL(ntf_add_listener);
+
 static bool screen_on = false, screen_on_early = false, screen_off_early = false;
 
 // ======= SCREEN ON/OFF
@@ -68,12 +89,15 @@ EXPORT_SYMBOL(ntf_is_screen_early_off);
 // ======= CHARGE
 
 bool is_charging = false;
+bool charge_state_changed = true;
 void ntf_set_charge_state(bool on) {
 #ifdef NTF_D_LOG
 	pr_info("%s [cleanslate] charge state = %d\n",__func__,on);
 #endif
 	if (on!=is_charging) {
 // change handle
+		ntf_notify_listeners("charge_state", on, "");
+		charge_state_changed = true;
 	}
 	is_charging = on;
 }
@@ -83,8 +107,11 @@ void ntf_set_charge_level(int level) {
 #ifdef NTF_D_LOG
 	pr_info("%s [cleanslate] level = %d\n",__func__,level);
 #endif
-	if (level!=charge_level) {
+//	if (level!=charge_level || (charge_state_changed && is_charging))
+	{
 // change handle
+		ntf_notify_listeners("charge_level", level, "");
+		charge_state_changed = false;
 	}
 	charge_level = level;
 }
