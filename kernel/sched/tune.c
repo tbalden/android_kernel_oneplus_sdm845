@@ -29,6 +29,37 @@ static int dynamic_boost(struct schedtune *st, int boost);
 static int stune_boost_count = 0;
 #endif /* CONFIG_DYNAMIC_STUNE_BOOST */
 
+#ifdef CONFIG_DYNAMIC_STUNE_BOOST
+#ifdef CONFIG_UCI
+#include <linux/uci/uci.h>
+static bool boost_eas = false;
+static int boost_eas_level = 1;
+static bool boost_eas_level_ext = false;
+
+static bool shown_debug_stune = false;
+static bool shown_debug_do_boost = false;
+static void uci_user_listener(void) {
+    boost_eas = uci_get_user_property_int_mm("boost_eas", 1, 0, 1);
+    boost_eas_level = uci_get_user_property_int_mm("boost_eas_level", 1, 0, 2);
+    boost_eas_level_ext = uci_get_user_property_int_mm("boost_eas_level_ext", 0, 0, 1);
+    pr_info("%s [CLEANSLATE] tune - stune uci user listener %d %d %d\n",__func__,boost_eas,boost_eas_level,boost_eas_level_ext);
+    shown_debug_stune = false;
+    shown_debug_do_boost = false;
+}
+static int boost_map[3] = { 9, 13, 20 };
+static int get_dynamic_stune_boost(void) {
+    int ret = 0;
+    if (boost_eas_level_ext) return 0;//dynamic_stune_boost;
+    ret = boost_map[boost_eas_level]; // 9 - 20;
+    if (!shown_debug_stune) {
+	shown_debug_stune = true;
+	pr_info("%s [CLEANSLATE] tune - dynamic stune boost value %d\n",__func__,ret);
+    }
+    return ret;
+}
+#endif
+#endif
+
 /* Performance Boost region (B) threshold params */
 static int perf_boost_idx;
 
@@ -1139,7 +1170,16 @@ int stune_boost(char *st_name)
 
 	if (!st)
 		return -EINVAL;
-
+#ifdef CONFIG_UCI
+	if (!boost_eas_level_ext && boost_eas && !strcmp(st_name,"top-app")) {
+		// if using UCI configuration, override for top-app group (only)
+		if (!shown_debug_do_boost) {
+			pr_info("%s [CLEANSLATE] tune - boost top-app\n",__func__);
+			shown_debug_do_boost = true; // only show debug log once
+		}
+		return _do_stune_boost(st, get_dynamic_stune_boost());
+	} else
+#endif
 	return _do_stune_boost(st, st->dynamic_boost);
 }
 
@@ -1354,7 +1394,11 @@ schedtune_init(void)
 #endif /* CONFIG_CGROUP_SCHEDTUNE */
 
 	schedtune_spc_rdiv = reciprocal_value(100);
-
+#ifdef CONFIG_DYNAMIC_STUNE_BOOST
+#ifdef CONFIG_UCI
+        uci_add_user_listener(uci_user_listener);
+#endif
+#endif
 	return 0;
 
 nodata:

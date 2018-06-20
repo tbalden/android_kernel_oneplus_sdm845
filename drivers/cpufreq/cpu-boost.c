@@ -26,9 +26,9 @@
 #ifdef CONFIG_DYNAMIC_STUNE_BOOST
 #ifdef CONFIG_UCI
 #include <linux/uci/uci.h>
-bool boost_eas = false;
-int boost_eas_level = 1;
-bool boost_eas_level_ext = false;
+static bool boost_eas = false;
+static int boost_eas_level = 1;
+static bool boost_eas_level_ext = false;
 #endif
 #endif
 struct cpu_sync {
@@ -73,7 +73,7 @@ static int get_dynamic_stune_boost(void) {
 	}
 	return ret;
 }
-static int input_ms_map[3] = { 1300, 1500, 1500 };
+static int input_ms_map[3] = { 60, 90, 120 };
 static int get_input_boost_ms(void) {
 	int ret = 0;
 	if (!boost_eas || boost_eas_level_ext) return input_boost_ms;
