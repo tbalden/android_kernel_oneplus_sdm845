@@ -180,6 +180,8 @@ void sde_setup_dspp_pccv4(struct sde_hw_dspp *ctx, void *cfg)
 	u32 base = 0;
 #if 1
 	int enable = 0, r=255,g=255,b=255, min = 20;
+	int sat=255, hue=0, cont=255, val = 255;
+	u32 opcode = 0, local_opcode = 0;
 #endif
 
 	if (!ctx || !cfg) {
@@ -196,6 +198,18 @@ void sde_setup_dspp_pccv4(struct sde_hw_dspp *ctx, void *cfg)
 	if (r<min) r= min;
 	if (g<min) g= min;
 	if (b<min) b= min;
+        sat = uci_get_user_property_int_mm("kcal_sat", sat, 128, 383);
+	// don't add HUE, not much useful
+        //hue = uci_get_user_property_int_mm("kcal_hue", hue, 0, 255);
+        cont = uci_get_user_property_int_mm("kcal_cont", cont,128, 383);
+        val = uci_get_user_property_int_mm("kcal_val", val, 128, 383);
+	if (!enable) {
+		// disabled, return to defaults
+		sat = 255;
+		cont = 255;
+		val = 255;
+		hue = 0;
+	}
 #endif
 	if (!hw_cfg->payload) {
 		DRM_DEBUG_DRIVER("disable pcc feature\n");
@@ -282,6 +296,34 @@ void sde_setup_dspp_pccv4(struct sde_hw_dspp *ctx, void *cfg)
 		pr_info("%s [CLEANSLATE] kcal setup... drm_msm_pcc i %d b %d (gb %d rgb %d) b_rr %d b_gg %d b_bb %d  \n",__func__, i, coeffs->b, coeffs->gb, coeffs->rgb, pcc_cfg->b_rr, pcc_cfg->b_gg, pcc_cfg->b_bb);
 #endif
 	}
+
+#if 1
+
+	opcode = SDE_REG_READ(&ctx->hw, ctx->cap->sblk->hsic.base);
+
+	// HUE
+	SDE_REG_WRITE(&ctx->hw, ctx->cap->sblk->hsic.base + PA_HUE_OFF,
+		hue & PA_HUE_MASK);
+	local_opcode |= PA_HUE_EN;
+
+	// SATURATION
+	SDE_REG_WRITE(&ctx->hw, ctx->cap->sblk->hsic.base + PA_SAT_OFF,
+		sat & PA_SAT_MASK);
+	local_opcode |= PA_SAT_EN;
+
+	// VALUE
+	SDE_REG_WRITE(&ctx->hw, ctx->cap->sblk->hsic.base + PA_VAL_OFF,
+		val & PA_VAL_MASK);
+	local_opcode |= PA_VAL_EN;
+
+	// CONTRAST
+	SDE_REG_WRITE(&ctx->hw, ctx->cap->sblk->hsic.base + PA_CONT_OFF,
+		cont & PA_CONT_MASK);
+	local_opcode |= PA_CONT_EN;
+
+	opcode |= (local_opcode | PA_EN);
+	SDE_REG_WRITE(&ctx->hw, ctx->cap->sblk->hsic.base, opcode);
+#endif
 
 	SDE_REG_WRITE(&ctx->hw, ctx->cap->sblk->pcc.base, PCC_EN);
 }
