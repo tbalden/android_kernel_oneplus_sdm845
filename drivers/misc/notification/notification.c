@@ -35,7 +35,7 @@
 #define DRIVER_DESCRIPTION "uci notifications driver"
 #define DRIVER_VERSION "1.0"
 
-#define NTF_D_LOG
+//#define NTF_D_LOG
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESCRIPTION);
@@ -47,6 +47,11 @@ struct notifier_block *uci_ntf_fb_notifier;
 #elif defined(CONFIG_MSM_RDM_NOTIFY)
 struct notifier_block *uci_ntf_msm_drm_notif;
 #endif
+
+static bool face_down = false;
+static bool proximity = false;
+static bool silent = false;
+static bool ringing = false;
 
 // listeners
 
@@ -96,7 +101,7 @@ void ntf_set_charge_state(bool on) {
 #endif
 	if (on!=is_charging) {
 // change handle
-		ntf_notify_listeners("charge_state", on, "");
+		ntf_notify_listeners(NTF_EVENT_CHARGE_STATE, on, "");
 		charge_state_changed = true;
 	}
 	is_charging = on;
@@ -110,13 +115,14 @@ void ntf_set_charge_level(int level) {
 //	if (level!=charge_level || (charge_state_changed && is_charging))
 	{
 // change handle
-		ntf_notify_listeners("charge_level", level, "");
+		ntf_notify_listeners(NTF_EVENT_CHARGE_LEVEL, level, "");
 		charge_state_changed = false;
 	}
 	charge_level = level;
 }
 EXPORT_SYMBOL(ntf_set_charge_level);
 
+static bool wake_by_user = true;
 
 #if defined(CONFIG_FB)
 static int first_unblank = 1;
@@ -170,6 +176,8 @@ static int fb_notifier_callback(struct notifier_block *self,
     }
     return 0;
 }
+
+
 #elif defined(CONFIG_MSM_RDM_NOTIFY)
 static int first_unblank = 1;
 
@@ -214,6 +222,7 @@ static int fb_notifier_callback(
 		screen_on = false;
 		screen_on_early = false;
 		screen_off_early = true;
+		wake_by_user = false;
 	    break;
 	case MSM_DRM_BLANK_UNBLANK:
 		pr_info("ntf uci screen oh\n");
@@ -223,6 +232,9 @@ static int fb_notifier_callback(
 		screen_on = true;
 		screen_on_early = true;
 		screen_off_early = false;
+		if (wake_by_user) {
+			ntf_notify_listeners(NTF_WAKE_BY_USER,1,"");
+		}
 	    break;
 	default:
 	    pr_info("%s default\n", __func__);
@@ -232,6 +244,66 @@ static int fb_notifier_callback(
     return NOTIFY_OK;
 }
 #endif
+
+bool ntf_wake_by_user(void) {
+	return wake_by_user;
+}
+EXPORT_SYMBOL(ntf_wake_by_user);
+
+void ntf_input_event(const char* caller, const char *param) {
+	// input event happened, stop stuff, store timesamp, set wake_by_user
+	wake_by_user = true; // TODO check screen off events
+}
+EXPORT_SYMBOL(ntf_input_event);
+
+static int last_notification_number = 0;
+// registered sys uci listener
+static void uci_sys_listener(void) {
+        pr_info("%s [CLEANSLATE] sys listener... \n",__func__);
+        {
+                bool ringing_new = !!uci_get_sys_property_int_mm("ringing", 0, 0, 1);
+                face_down = !!uci_get_sys_property_int_mm("face_down", 0, 0, 1);
+                proximity = !!uci_get_sys_property_int_mm("proximity", 0, 0, 1);
+                silent = !!uci_get_sys_property_int_mm("silent", 0, 0, 1);
+
+                if (ringing_new && !ringing) {
+			ntf_notify_listeners(NTF_EVENT_RINGING, 1, "");
+                }
+                if (!ringing_new && ringing) {
+                        ringing = false;
+			ntf_notify_listeners(NTF_EVENT_RINGING, 0, "");
+                }
+                ringing = ringing_new;
+
+                pr_info("%s uci sys face_down %d\n",__func__,face_down);
+                pr_info("%s uci sys proximity %d\n",__func__,proximity);
+                pr_info("%s uci sys silent %d\n",__func__,silent);
+                pr_info("%s uci sys ringing %d\n",__func__,ringing);
+        }
+	{
+    		int ringing = uci_get_sys_property_int_mm("ringing", 0, 0, 1);
+    		pr_info("%s uci sys ringing %d\n",__func__,ringing);
+    		if (ringing) {
+                        ntf_input_event(__func__,NULL);
+    		}
+	}
+	{
+    		int notifications = uci_get_sys_property_int("notifications",0);
+    		if (notifications != -EINVAL) {
+    			if (notifications>last_notification_number) {
+				// send notification event
+				ntf_notify_listeners(NTF_EVENT_NOTIFICATION, 1, "");
+			}
+			last_notification_number = notifications;
+		}
+	}
+}
+
+// registered user uci listener
+static void uci_user_listener(void) {
+        pr_info("%s [CLEANSLATE] user listener... \n",__func__);
+}
+
 
 static int __init ntf_init(void)
 {
@@ -249,6 +321,9 @@ static int __init ntf_init(void)
         if (status)
                 pr_err("Unable to register msm_drm_notifier: %d\n", status);
 #endif
+	uci_add_sys_listener(uci_sys_listener);
+	uci_add_user_listener(uci_user_listener);
+
 	return rc;
 }
 
