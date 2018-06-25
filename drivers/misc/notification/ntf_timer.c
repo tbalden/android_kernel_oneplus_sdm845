@@ -1,3 +1,9 @@
+/*
+ * Copyright (C) 2018 Pal Zoltan Illes
+ *
+ * Licensed under the GPL-2 or later.
+ */
+
 /**
     alarm scheduled tasks for notifications
     - flashlight
