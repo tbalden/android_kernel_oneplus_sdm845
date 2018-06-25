@@ -219,10 +219,15 @@ static int uci_get_flash_only_face_down(void) {
 	return uci_get_user_property_int_mm("flash_only_face_down", flash_only_face_down, 0, 1);
 }
 
-static bool face_down = false;
+//static bool face_down = false;
 //static bool proximity = false;
-static bool silent = false;
-static bool ringing = false;
+//static bool silent = false;
+//static bool ringing = false;
+
+extern bool ntf_face_down;
+extern bool ntf_proximity;
+extern bool ntf_silent;
+extern bool ntf_ringing;
 
 void flash_blink(bool haptic);
 void flash_stop_blink(void);
@@ -353,7 +358,7 @@ EXPORT_SYMBOL(get_vib_notification_length);
 
 static int smart_get_vib_notification_reminder(void) {
 	int ret = 0;
-	if (silent) return 0; // do not vibrate in silent mode at all, regadless of configurations
+	if (ntf_silent) return 0; // do not vibrate in silent mode at all, regadless of configurations
 	if (uci_get_user_property_int_mm("vib_notification_reminder", vib_notification_reminder, 0, 1)) {
 		int level = smart_get_notification_level(NOTIF_VIB_REMINDER);
 		if (level!=NOTIF_STOP) {
@@ -421,7 +426,7 @@ void do_flash_blink(void) {
 		bright = 1;
 	}
 
-	if (uci_get_flash_blink_bright() && ringing) bright = 1;
+	if (uci_get_flash_blink_bright() && ntf_ringing) bright = 1;
 
 //	qpnp_torch_main(0,0);
 
@@ -435,7 +440,7 @@ void do_flash_blink(void) {
 	limit -= dim * 2;
 
 
-	if ((uci_get_flash_only_face_down() && face_down) || !uci_get_flash_only_face_down()) {
+	if ((uci_get_flash_only_face_down() && ntf_face_down) || !uci_get_flash_only_face_down()) {
 		flash_next = 1; // should flash next time, alarm wait normal... if no flashing is being done, vibrating reminder wait period should be waited instead!
 		while (count++<limit) {
 			qpnp_torch_main(150*(bright+1),0);  // [o] [ ]
@@ -455,7 +460,7 @@ void do_flash_blink(void) {
 		pr_info("%s skipping flashing because of not face down\n",__func__);
 	}
 
-	if (!ringing) {
+	if (!ntf_ringing) {
 	if (smart_get_vib_notification_reminder() && current_blink_num % vib_slowness == (vib_slowness - 1)) {
 		{
 			ktime_t curr_time = { .tv64 = 0 };
@@ -665,7 +670,7 @@ static enum alarmtimer_restart flash_blink_unidle_smp_cpu_rtc_callback(struct al
 void flash_stop_blink(void) {
 //	pr_info("%s flash_blink\n",__func__);
 	if (!init_done) return;
-	if (ringing) return; // screen on/user input shouldn't stop ringing triggered flashing!
+	if (ntf_ringing) return; // screen on/user input shouldn't stop ringing triggered flashing!
 	pr_info("%s stop blink queue work...\n",__func__);
 	queue_work(flash_stop_blink_workqueue, &flash_stop_blink_work);
 }
@@ -680,13 +685,13 @@ static void ntf_listener(char* event, int num_param, char* str_param) {
 		pr_info("%s blink ntf_timer listener event %s %d %s\n",__func__,event,num_param,str_param);
 	}
 	if (!strcmp(event,NTF_EVENT_NOTIFICATION)) {
-//		if (!ntf_is_screen_on()) 
+		if (!ntf_is_screen_on()) 
 		{
 			flash_blink(true);
 		}
 	}
 	if (!strcmp(event,NTF_WAKE_BY_USER)) {
-//		flash_stop_blink();
+		flash_stop_blink();
 	}
 	if (!strcmp(event,NTF_EVENT_RINGING)) {
 		if (num_param) {
