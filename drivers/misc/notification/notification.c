@@ -54,10 +54,14 @@ struct notifier_block *uci_ntf_fb_notifier;
 struct notifier_block *uci_ntf_msm_drm_notif;
 #endif
 
-static bool face_down = false;
-static bool proximity = false;
-static bool silent = false;
-static bool ringing = false;
+bool ntf_face_down = false;
+EXPORT_SYMBOL(ntf_face_down);
+bool ntf_proximity = false;
+EXPORT_SYMBOL(ntf_proximity);
+bool ntf_silent = false;
+EXPORT_SYMBOL(ntf_silent);
+bool ntf_ringing = false;
+EXPORT_SYMBOL(ntf_ringing);
 
 // listeners
 
@@ -268,23 +272,23 @@ static void uci_sys_listener(void) {
         pr_info("%s [CLEANSLATE] sys listener... \n",__func__);
         {
                 bool ringing_new = !!uci_get_sys_property_int_mm("ringing", 0, 0, 1);
-                face_down = !!uci_get_sys_property_int_mm("face_down", 0, 0, 1);
-                proximity = !!uci_get_sys_property_int_mm("proximity", 0, 0, 1);
-                silent = !!uci_get_sys_property_int_mm("silent", 0, 0, 1);
+                ntf_face_down = !!uci_get_sys_property_int_mm("face_down", 0, 0, 1);
+                ntf_proximity = !!uci_get_sys_property_int_mm("proximity", 0, 0, 1);
+                ntf_silent = !!uci_get_sys_property_int_mm("silent", 0, 0, 1);
 
-                if (ringing_new && !ringing) {
+                if (ringing_new && !ntf_ringing) {
 			ntf_notify_listeners(NTF_EVENT_RINGING, 1, "");
                 }
-                if (!ringing_new && ringing) {
-                        ringing = false;
+                if (!ringing_new && ntf_ringing) {
+                        ntf_ringing = false;
 			ntf_notify_listeners(NTF_EVENT_RINGING, 0, "");
                 }
-                ringing = ringing_new;
+                ntf_ringing = ringing_new;
 
-                pr_info("%s uci sys face_down %d\n",__func__,face_down);
-                pr_info("%s uci sys proximity %d\n",__func__,proximity);
-                pr_info("%s uci sys silent %d\n",__func__,silent);
-                pr_info("%s uci sys ringing %d\n",__func__,ringing);
+                pr_info("%s uci sys face_down %d\n",__func__,ntf_face_down);
+                pr_info("%s uci sys proximity %d\n",__func__,ntf_proximity);
+                pr_info("%s uci sys silent %d\n",__func__,ntf_silent);
+                pr_info("%s uci sys ringing %d\n",__func__,ntf_ringing);
         }
 	{
     		int ringing = uci_get_sys_property_int_mm("ringing", 0, 0, 1);
