@@ -1741,10 +1741,11 @@ static ssize_t qpnp_haptics_store_duration(struct device *dev,
 	return count;
 }
 #if 1
-void set_vibrate(int val)
+static int set_val = 0;
+static void set_vibrate_work_func(struct work_struct *set_vibrate_work) 
 {
 	int rc;
-
+	int val = set_val;
 	int power_perc = uci_get_vibration_power_percentage();
 	pr_info("%s [CLEANSLATE] power_perc = %d val = %d\n",__func__,power_perc,val);
 
@@ -1753,8 +1754,9 @@ void set_vibrate(int val)
 
 	if (val > gchip->max_play_time_ms)
 		return;
+// TODO fix this for notif reminder
+	if (mutex_trylock(&gchip->param_lock)) {
 
-	mutex_lock(&gchip->param_lock);
 	rc = qpnp_haptics_auto_mode_config(gchip, val);
 	if (rc < 0) {
 		pr_err("Unable to do auto mode config\n");
@@ -1773,11 +1775,22 @@ void set_vibrate(int val)
 	atomic_set(&gchip->state, 1);
 	schedule_work(&gchip->haptics_work);
 
+	}
+}
+DECLARE_WORK(set_vibrate_work,set_vibrate_work_func);
+
+void set_vibrate(int val)
+{
+	set_val = val;
+	schedule_work(&set_vibrate_work);
 }
 EXPORT_SYMBOL(set_vibrate);
-void set_vibrate_boosted(int val)
+
+static int set_boosted_val = 0;
+static void set_vibrate_boosted_work_func(struct work_struct *set_vibrate_boosted_work) 
 {
 	int rc;
+	int val = set_boosted_val;
 	if (val == 0) return;
 	override_power_set = smart_get_boost_on();
 
@@ -1806,6 +1819,13 @@ void set_vibrate_boosted(int val)
 	schedule_work(&gchip->haptics_work);
 
 	override_power_set = false;
+}
+DECLARE_WORK(set_vibrate_boosted_work,set_vibrate_boosted_work_func);
+
+void set_vibrate_boosted(int val)
+{
+	set_boosted_val = val;
+	schedule_work(&set_vibrate_boosted_work);
 }
 EXPORT_SYMBOL(set_vibrate_boosted);
 #endif
