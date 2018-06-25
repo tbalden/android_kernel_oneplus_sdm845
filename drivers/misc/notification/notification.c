@@ -262,7 +262,12 @@ EXPORT_SYMBOL(ntf_wake_by_user);
 
 void ntf_input_event(const char* caller, const char *param) {
 	// input event happened, stop stuff, store timesamp, set wake_by_user
-	wake_by_user = true; // TODO check screen off events
+	if (!wake_by_user) {
+		wake_by_user = true; // TODO check screen off events
+		ntf_notify_listeners(NTF_WAKE_BY_USER,1,"");
+	} else { 
+		wake_by_user = true; // TODO check screen off events
+	}
 }
 EXPORT_SYMBOL(ntf_input_event);
 
