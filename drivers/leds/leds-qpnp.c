@@ -269,6 +269,8 @@ bool charging_led_dash = false;
 static struct qpnp_led_data *led_r;
 static struct qpnp_led_data *led_g;
 static struct qpnp_led_data *led_b;
+static struct qpnp_led_data *led_flash_led0;
+static struct qpnp_led_data *led_flash_led1;
 int last_level = -1;
 #endif
 
@@ -1582,6 +1584,26 @@ error_flash_set:
 	}
 	return rc;
 }
+
+#ifdef CONFIG_UCI
+void qpnp_torch_main2(int led0, int led1) {
+	pr_info("%s __ enter t\n",__func__);
+	if (led_flash_led0) {
+		led_flash_led0->cdev.brightness = led0;
+		qpnp_flash_set(led_flash_led0);
+	} else {
+		pr_info("%s flash led0 not present\n",__func__);
+	}
+	if (led_flash_led1) {
+		led_flash_led1->cdev.brightness = led1;
+		qpnp_flash_set(led_flash_led1);
+	} else {
+		pr_info("%s flash led0 not present\n",__func__);
+	}
+	pr_info("%s __ exit t\n",__func__);
+}
+EXPORT_SYMBOL(qpnp_torch_main2);
+#endif
 
 static int qpnp_kpdbl_set(struct qpnp_led_data *led)
 {
@@ -3255,6 +3277,11 @@ static int qpnp_led_initialize(struct qpnp_led_data *led)
 		if (rc)
 			dev_err(&led->pdev->dev,
 				"FLASH initialize failed(%d)\n", rc);
+#ifdef CONFIG_UCI
+		pr_info("%s flash led reg %d \n",__func__,led->id);
+		if (led->id == QPNP_ID_FLASH1_LED0) led_flash_led0 = led;
+		if (led->id == QPNP_ID_FLASH1_LED1) led_flash_led1 = led;
+#endif
 		break;
 	case QPNP_ID_RGB_RED:
 	case QPNP_ID_RGB_GREEN:
@@ -4073,8 +4100,10 @@ bool charging = false;
 static int test_level = 0;
 static bool test = false;
 static void ntf_listener(char* event, int num_param, char* str_param) {
-	pr_info("%s leds_qpnp ntf listener event %s %d %s\n",__func__,event,num_param,str_param);
-	if (!strcmp(event,"charge_level")) {
+	if (strcmp(event,NTF_EVENT_CHARGE_LEVEL)) {
+		pr_info("%s leds_qpnp ntf listener event %s %d %s\n",__func__,event,num_param,str_param);
+	}
+	if (!strcmp(event,NTF_EVENT_CHARGE_LEVEL)) {
 		if ((charging_led || charging_led_dash) && charging) {
 			if (test) num_param = test_level;
 			// set charge color
@@ -4086,7 +4115,7 @@ static void ntf_listener(char* event, int num_param, char* str_param) {
 			last_level = num_param;
 		}
 	} else
-	if (!strcmp(event,"charge_state")) {
+	if (!strcmp(event,NTF_EVENT_CHARGE_STATE)) {
 		charging = !!num_param;
 		if (!charging) {
 			last_level = -1;
