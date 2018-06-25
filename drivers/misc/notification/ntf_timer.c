@@ -19,6 +19,7 @@ static DEFINE_SPINLOCK(blink_spinlock);
 #if 1
 static int init_done = 0;
 static struct alarm flash_blink_rtc;
+static struct alarm flash_blink_unidle_smp_cpu_rtc;
 static struct alarm vib_rtc;
 static struct work_struct flash_blink_work;
 static struct work_struct flash_start_blink_work;
@@ -400,6 +401,7 @@ void do_flash_blink(void) {
 	int vib_slowness = smart_get_vib_notification_slowness();
 
 	pr_info("%s ########################## flash_blink ############################# \n",__func__);
+	alarm_cancel(&flash_blink_unidle_smp_cpu_rtc); // stop pending alarm... no need to unidle cpu in that alarm...
 
 	if (currently_torch_mode || interrupt_retime) return;
 
@@ -620,16 +622,39 @@ static enum alarmtimer_restart vib_rtc_callback(struct alarm *al, ktime_t now)
 }
 
 
+static int smp_processor = 0;
 static enum alarmtimer_restart flash_blink_rtc_callback(struct alarm *al, ktime_t now)
 {
 	pr_info("%s flash_blink\n",__func__);
 	if (!interrupt_retime) {
+		ktime_t wakeup_time_vib;
+		ktime_t curr_time = { .tv64 = 0 };
 		pr_info("%s blink queue work ALARM...\n",__func__);
-		queue_work(flash_blink_workqueue, &flash_blink_work);
+		smp_processor = smp_processor_id();
+		pr_info("%s flash_blink cpu %d\n",__func__, smp_processor);
+		// queue work on current CPU for avoiding sleeping CPU...
+		queue_work_on(smp_processor,flash_blink_workqueue, &flash_blink_work);
+
+		wakeup_time_vib = ktime_add_us(curr_time,
+			(2000LL * 1000LL)); // 2000 msec to usec 
+		alarm_cancel(&flash_blink_unidle_smp_cpu_rtc); // stop pending alarm...
+		alarm_start_relative(&flash_blink_unidle_smp_cpu_rtc, wakeup_time_vib); // start new...
 	}
 	pr_info("%s flash_blink exit\n",__func__);
 	return ALARMTIMER_NORESTART;
 }
+
+static enum alarmtimer_restart flash_blink_unidle_smp_cpu_rtc_callback(struct alarm *al, ktime_t now)
+{
+	pr_info("%s flash_blink cpu %d \n",__func__, smp_processor);
+	if (!interrupt_retime) {
+		// make sure Queue execution is not stuck... would mean longer pauses between blinks than should...
+		wake_up_if_idle(smp_processor);
+//		wake_up_all_idle_cpus();
+	}
+	return ALARMTIMER_NORESTART;
+}
+
 
 void flash_stop_blink(void) {
 //	pr_info("%s flash_blink\n",__func__);
@@ -674,6 +699,8 @@ static int __init ntf_timer_init_module(void)
 #if 1
         alarm_init(&flash_blink_rtc, ALARM_REALTIME,
                 flash_blink_rtc_callback);
+	alarm_init(&flash_blink_unidle_smp_cpu_rtc, ALARM_REALTIME,
+		flash_blink_unidle_smp_cpu_rtc_callback);
         alarm_init(&vib_rtc, ALARM_REALTIME,
                 vib_rtc_callback);
         flash_blink_workqueue = create_singlethread_workqueue("flash_blink");
