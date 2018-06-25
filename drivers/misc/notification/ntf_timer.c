@@ -384,7 +384,6 @@ void precise_delay(int usec) {
 	}
 }
 
-extern void set_vibrate(int value);
 extern void qpnp_torch_main(int led0, int led1);
 
 // should be true if phone was not in flashlight ready state, like not on a table face down. Then next flashblink start should reschedule work.
@@ -606,11 +605,12 @@ static void flash_blink_work_func(struct work_struct *work)
 	do_flash_blink();
 }
 
-extern void set_vibrate(int value);
+//extern void set_vibrate(int value);
+extern void set_vibrate_boosted(int value);
 static void vib_work_func(struct work_struct *vib_work_func_work)
 {
-	pr_info("%s set_vibrate\n",__func__);
-	set_vibrate(uci_get_vib_notification_length());
+	pr_info("%s set_vibrate boosted\n",__func__);
+	set_vibrate_boosted(uci_get_vib_notification_length());
 }
 static DECLARE_WORK(vib_work_func_work, vib_work_func);
 
