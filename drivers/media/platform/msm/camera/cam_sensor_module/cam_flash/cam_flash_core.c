@@ -16,6 +16,10 @@
 #include "cam_flash_core.h"
 #include "cam_res_mgr_api.h"
 
+#ifdef CONFIG_UCI
+#include <linux/notification/notification.h>
+#endif
+
 int cam_flash_prepare(struct cam_flash_ctrl *flash_ctrl,
 	bool regulator_enable)
 {
@@ -136,6 +140,9 @@ static int cam_flash_ops(struct cam_flash_ctrl *flash_ctrl,
 		CAM_ERR(CAM_FLASH, "Fctrl or Data NULL");
 		return -EINVAL;
 	}
+#if 1
+	pr_info("%s flash ops opcode %d\n",__func__,op);
+#endif
 
 	soc_private = (struct cam_flash_private_soc *)
 		flash_ctrl->soc_info.soc_private;
@@ -225,6 +232,9 @@ int cam_flash_off(struct cam_flash_ctrl *flash_ctrl)
 		CAM_ERR(CAM_FLASH, "Flash control Null");
 		return -EINVAL;
 	}
+#if 1
+	pr_info("%s flash off \n",__func__);
+#endif
 
 	for (i = 0; i < flash_ctrl->flash_num_sources; i++)
 		if (flash_ctrl->flash_trigger[i])
@@ -243,6 +253,9 @@ int cam_flash_off(struct cam_flash_ctrl *flash_ctrl)
 			LED_SWITCH_OFF);
 
 	flash_ctrl->flash_state = CAM_FLASH_STATE_START;
+#if CONFIG_UCI
+	ntf_set_cam_flashlight(false);
+#endif
 	return 0;
 }
 
@@ -268,6 +281,9 @@ static int cam_flash_low(
 	if (rc)
 		CAM_ERR(CAM_FLASH, "Fire Torch failed: %d", rc);
 
+#if CONFIG_UCI
+	ntf_set_cam_flashlight(true);
+#endif
 	return rc;
 }
 
@@ -293,6 +309,9 @@ static int cam_flash_high(
 	if (rc)
 		CAM_ERR(CAM_FLASH, "Fire Flash Failed: %d", rc);
 
+#if CONFIG_UCI
+	ntf_set_cam_flashlight(true);
+#endif
 	return rc;
 }
 
@@ -375,6 +394,9 @@ int cam_flash_apply_setting(struct cam_flash_ctrl *fctrl,
 	int frame_offset = 0;
 	uint16_t num_iterations;
 	struct cam_flash_frame_setting *flash_data = NULL;
+#if 1
+	pr_info("%s flash apply opcode %d\n",__func__, fctrl->nrt_info.opcode);
+#endif
 
 	if (req_id == 0) {
 		if (fctrl->nrt_info.cmn_attr.cmd_type ==
