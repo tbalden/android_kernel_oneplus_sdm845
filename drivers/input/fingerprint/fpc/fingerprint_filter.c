@@ -227,8 +227,9 @@ static void fpf_pwrtrigger(int vibration, const char caller[]);
 
 
 // register input event alarm timer
-//extern void register_input_event(const char* caller); TODO
-void register_input_event(const char* caller) { }
+void register_input_event(const char* caller) { 
+	ntf_input_event(caller,"");
+}
 
 void stop_kernel_ambient_display(bool interrupt_ongoing);
 
@@ -2667,9 +2668,11 @@ static void ts_input_event(struct input_handle *handle, unsigned int type,
 }
 
 static int ts_input_dev_filter(struct input_dev *dev) {
+	pr_info("%s %s\n",__func__, dev->name);
 	if (
 		strstr(dev->name, "himax-touchscreen") ||
 		strstr(dev->name, "synaptics_dsx") ||
+		strstr(dev->name, "synaptics,s3320") ||
 		strstr(dev->name, "max1187x_touchscreen_0") ||
 		strstr(dev->name, "nvt_touchscreen") ||
 		strstr(dev->name, "cyttsp") ||
@@ -2686,6 +2689,8 @@ static int ts_input_dev_filter(struct input_dev *dev) {
 		if (strstr(dev->name, "synaptics_dsx")) ts_device = dev;
 		// m10
 		if (strstr(dev->name, "max1187x_touchscreen_0")) ts_device = dev;
+		// op6
+		if (strstr(dev->name, "synaptics,s3320")) ts_device = dev;
 
 		return 0;
 	} else {
