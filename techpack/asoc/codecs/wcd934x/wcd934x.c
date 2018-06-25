@@ -10252,11 +10252,14 @@ static int hp_r_gain = 0; 		// -84 ..  20
 
 // registered user uci listener
 static void uci_user_listener(void) {
+	int sound_switch = uci_get_user_property_int_mm("sound_switch", 0, 0, 1);
 	int speaker_gain_new = uci_get_user_property_int_mm("sound_speaker_gain", speaker_gain, 0, 6);
 	int earpiece_gain_new = uci_get_user_property_int_mm("sound_earpiece_gain", earpiece_gain,-10, 20);
 	int mic_gain_new = uci_get_user_property_int_mm("sound_mic_gain", mic_gain, -10, 20);
 	int hp_l_gain_new = uci_get_user_property_int_mm("sound_hp_l_gain", hp_l_gain, -84, 20);
 	int hp_r_gain_new = uci_get_user_property_int_mm("sound_hp_r_gain", hp_r_gain, -84, 20);
+
+	if (!sound_switch) return; // disabled
 
 	if (speaker_gain_new != speaker_gain) {
 		speaker_gain = speaker_gain_new;
