@@ -271,6 +271,13 @@ void ntf_input_event(const char* caller, const char *param) {
 }
 EXPORT_SYMBOL(ntf_input_event);
 
+void ntf_vibration(int length) {
+	if (length>=MIN_TD_VALUE_NOTIFICATION) {
+		ntf_notify_listeners(NTF_EVENT_NOTIFICATION, 1, NTF_EVENT_NOTIFICATION_ARG_HAPTIC);
+	}
+}
+EXPORT_SYMBOL(ntf_vibration);
+
 static int last_notification_number = 0;
 // registered sys uci listener
 static void uci_sys_listener(void) {

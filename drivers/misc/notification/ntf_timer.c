@@ -687,7 +687,11 @@ static void ntf_listener(char* event, int num_param, char* str_param) {
 	if (!strcmp(event,NTF_EVENT_NOTIFICATION)) {
 		if (!ntf_is_screen_on()) 
 		{
-			flash_blink(true); // TODO this should be false if notification is not based on detection of haptics
+			if (str_param && !strcmp(str_param,NTF_EVENT_NOTIFICATION_ARG_HAPTIC)) {
+				flash_blink(true); // haptic feedback based detection...
+			} else {
+				flash_blink(false);
+			}
 		}
 	}
 	if (!strcmp(event,NTF_WAKE_BY_USER)) {

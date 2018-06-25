@@ -670,10 +670,6 @@ static bool is_haptics_idle(struct hap_chip *chip)
 #if 1
 
 #define VMAX_MV_NOTIFICATION HAP_VMAX_MAX_MV
-#define MIN_TD_VALUE_NOTIFICATION 100
-// sense framework based values, 1000 for call, 500 for alarm
-#define MIN_TD_VALUE_NOTIFICATION_CALL 1000
-#define MIN_TD_VALUE_NOTIFICATION_ALARM 500
 
 static bool notification_duration_detected = 0;
 
@@ -1721,7 +1717,7 @@ static ssize_t qpnp_haptics_store_duration(struct device *dev,
 
 	chip->play_time_ms = val;
 	mutex_unlock(&chip->param_lock);
-
+#if 1
 	pr_info("%s [CLEANSLATE] playtime duration %d\n",__func__,val);
 	if (val >= MIN_TD_VALUE_NOTIFICATION) {
 		notification_duration_detected = 1;
@@ -1737,7 +1733,7 @@ static ssize_t qpnp_haptics_store_duration(struct device *dev,
 			notification_duration_detected = 0;
 		}
 	}
-
+#endif
 	return count;
 }
 #if 1
@@ -1856,6 +1852,7 @@ static ssize_t qpnp_haptics_store_activate(struct device *dev,
 #if 1
 		// if not notification duration and boosting, but power percentage is set to 0, skip activation altogether...
 		int power_perc = uci_get_vibration_power_percentage();
+		ntf_vibration(chip->play_time_ms); // report vibration to notification driver
 		pr_info("%s [CLEANSLATE] power_perc = %d eval = %d\n",__func__,power_perc,(power_perc == 0 && (!notification_duration_detected || !smart_get_boost_on() || should_not_boost())));
 		if (power_perc == 0 && (!notification_duration_detected || !smart_get_boost_on() || should_not_boost())) return count;
 #endif

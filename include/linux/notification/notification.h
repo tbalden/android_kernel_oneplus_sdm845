@@ -23,6 +23,12 @@ enum notif_smart_level_type {
 #define NTF_EVENT_CHARGE_LEVEL "charge_level"
 #define NTF_WAKE_BY_USER "wake_by_user"
 
+#define NTF_EVENT_NOTIFICATION_ARG_HAPTIC "haptic"
+
+#define MIN_TD_VALUE_NOTIFICATION 100
+// sense framework based values, 1000 for call, 500 for alarm
+#define MIN_TD_VALUE_NOTIFICATION_CALL 1000
+#define MIN_TD_VALUE_NOTIFICATION_ALARM 500
 
 extern void smart_set_last_user_activity_time(void);
 extern int smart_get_notification_level(int notif_type);
@@ -43,6 +49,8 @@ extern void ntf_set_cam_flashlight(bool on);
 extern bool ntf_wake_by_user(void);
 // signal a user input (use it in touchscreen, input drivers..)
 extern void ntf_input_event(const char* caller, const char *param);
+// vibration events
+extern void ntf_vibration(int val);
 
 /** add change listener */
 extern void ntf_add_listener(void (*f)(char* event, int num_param, char* str_param));
