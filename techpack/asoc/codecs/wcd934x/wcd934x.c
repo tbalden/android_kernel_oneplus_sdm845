@@ -10274,11 +10274,13 @@ static void uci_user_listener(void) {
 		snd_soc_write(sound_control_codec_ptr, WCD934X_CDC_TX7_TX_VOL_CTL, mic_gain);
 	}
 	if (hp_l_gain_new != hp_l_gain) {
+		custom_hp_left = hp_l_gain_new;
 		hp_l_gain = hp_l_gain_new;
 		snd_soc_write(sound_control_codec_ptr, WCD934X_CDC_RX1_RX_VOL_MIX_CTL, hp_l_gain);
 		snd_soc_write(sound_control_codec_ptr, WCD934X_CDC_RX1_RX_VOL_CTL, hp_l_gain);
 	}
 	if (hp_r_gain_new != hp_r_gain) {
+		custom_hp_right = hp_r_gain_new;
 		hp_r_gain = hp_r_gain_new;
 		snd_soc_write(sound_control_codec_ptr, WCD934X_CDC_RX2_RX_VOL_MIX_CTL, hp_r_gain);
 		snd_soc_write(sound_control_codec_ptr, WCD934X_CDC_RX2_RX_VOL_CTL, hp_r_gain);
