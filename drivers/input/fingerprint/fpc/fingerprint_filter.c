@@ -235,6 +235,7 @@ void stop_kernel_ambient_display(bool interrupt_ongoing);
 
 int stored_lock_state = 0;
 // register sys uci listener
+static int last_face_down = 0;
 void fpf_uci_sys_listener(void) {
 	int locked = 0;
 	pr_info("%s uci sys parse happened...\n",__func__);
@@ -265,11 +266,14 @@ void fpf_uci_sys_listener(void) {
 			}
 		}
 		fpf_ringing = ringing;
-		if (screen_on && !ringing && !fpf_screen_waking_app) {
-			if (should_screen_off_face_down(screen_timeout_sec, face_down)) {
-				fpf_pwrtrigger(0,__func__);
+		if (face_down && last_face_down!=face_down) {
+			if (screen_on && ntf_wake_by_user() && !ringing && !fpf_screen_waking_app) {
+				if (should_screen_off_face_down(screen_timeout_sec, face_down)) {
+					fpf_pwrtrigger(0,__func__);
+				}
 			}
 		}
+		last_face_down = face_down;
 	}
 	if (!locked&&stored_lock_state!=locked) {
 		register_input_event(__func__);
