@@ -2823,10 +2823,19 @@ static void led_blink(struct qpnp_led_data *led,
 		if (led->id == QPNP_ID_RGB_RED || led->id == QPNP_ID_RGB_GREEN
 				|| led->id == QPNP_ID_RGB_BLUE) {
 #ifdef CONFIG_UCI
+			// ntf callback
+			bool led_on = led->cdev.brightness;
+			enum notif_led_type led_type = NTF_LED_RED;
+			if (led->id == QPNP_ID_RGB_GREEN) led_type = NTF_LED_GREEN;
+			if (led->id == QPNP_ID_RGB_BLUE) led_type = NTF_LED_BLUE;
+			ntf_led_blink(led_type,led_on);
+
+			// charging led all fase...
 			charging_led = false;
 			charging_led_full = false;
 			charging_led_dash = false;
 
+			// override pattern..
 			if (get_rgb_pulse()) {
 				int div = get_rgb_light_level();
 				int i;
