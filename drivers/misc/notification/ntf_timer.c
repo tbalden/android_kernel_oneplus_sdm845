@@ -89,7 +89,7 @@ static int dim_start_hour = 22; // start hour
 static int dim_end_hour = 6; // end hour
 
 static int uci_get_flash_dim_mode(void) {
-	return uci_get_user_property_int_mm("flash_dim_mode", dim_mode, 0, 1);
+	return uci_get_user_property_int_mm("flash_dim_mode", dim_mode, 0, 2);
 }
 static int uci_get_flash_dim_use_period(void) {
 	return uci_get_user_property_int_mm("flash_dim_use_period", dim_use_period, 0, 1);
@@ -685,7 +685,7 @@ static void ntf_listener(char* event, int num_param, char* str_param) {
 		pr_info("%s blink ntf_timer listener event %s %d %s\n",__func__,event,num_param,str_param);
 	}
 	if (!strcmp(event,NTF_EVENT_NOTIFICATION)) {
-		if (!ntf_is_screen_on()) 
+		if (!ntf_is_screen_on() || !ntf_wake_by_user())
 		{
 			if (str_param && !strcmp(str_param,NTF_EVENT_NOTIFICATION_ARG_HAPTIC)) {
 				flash_blink(true); // haptic feedback based detection...

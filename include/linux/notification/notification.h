@@ -17,6 +17,12 @@ enum notif_smart_level_type {
         NOTIF_STOP // stop overall
 };
 
+enum notif_led_type {
+	NTF_LED_RED = 0,
+	NTF_LED_GREEN,
+	NTF_LED_BLUE
+};
+
 #define NTF_EVENT_NOTIFICATION "notification"
 #define NTF_EVENT_RINGING "ringing"
 #define NTF_EVENT_CHARGE_STATE "charge_state"
@@ -29,6 +35,9 @@ enum notif_smart_level_type {
 // sense framework based values, 1000 for call, 500 for alarm
 #define MIN_TD_VALUE_NOTIFICATION_CALL 1000
 #define MIN_TD_VALUE_NOTIFICATION_ALARM 500
+// op6
+#define MIN_TD_VALUE_OP6_SILENT_MODE 300
+#define MIN_TD_VALUE_OP6_FORCED_FP 250
 
 extern void smart_set_last_user_activity_time(void);
 extern int smart_get_notification_level(int notif_type);
@@ -51,6 +60,8 @@ extern bool ntf_wake_by_user(void);
 extern void ntf_input_event(const char* caller, const char *param);
 // vibration events
 extern void ntf_vibration(int val);
+// led blink events
+extern void ntf_led_blink(enum notif_led_type led, bool on);
 
 /** add change listener */
 extern void ntf_add_listener(void (*f)(char* event, int num_param, char* str_param));

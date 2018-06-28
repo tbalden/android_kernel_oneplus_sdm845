@@ -133,6 +133,7 @@ void ntf_set_charge_level(int level) {
 EXPORT_SYMBOL(ntf_set_charge_level);
 
 static bool wake_by_user = true;
+static unsigned long screen_off_jiffies = 0;
 
 #if defined(CONFIG_FB)
 static int first_unblank = 1;
@@ -178,6 +179,7 @@ static int fb_notifier_callback(struct notifier_block *self,
         case FB_BLANK_VSYNC_SUSPEND:
         case FB_BLANK_NORMAL:
 		pr_info("ntf uci screen off\n");
+		screen_off_jiffies = jiffies;
 		screen_on = false;
 		screen_on_early = false;
 		screen_off_early = true;
@@ -233,6 +235,7 @@ static int fb_notifier_callback(
 		screen_on_early = false;
 		screen_off_early = true;
 		wake_by_user = false;
+		screen_off_jiffies = jiffies;
 	    break;
 	case MSM_DRM_BLANK_UNBLANK:
 		pr_info("ntf uci screen oh\n");
@@ -273,10 +276,29 @@ EXPORT_SYMBOL(ntf_input_event);
 
 void ntf_vibration(int length) {
 	if (length>=MIN_TD_VALUE_NOTIFICATION) {
+#if 1
+// op6
+		if (length==MIN_TD_VALUE_OP6_FORCED_FP) return;
+		if (length==MIN_TD_VALUE_OP6_SILENT_MODE) return;
+#endif
 		ntf_notify_listeners(NTF_EVENT_NOTIFICATION, 1, NTF_EVENT_NOTIFICATION_ARG_HAPTIC);
 	}
 }
 EXPORT_SYMBOL(ntf_vibration);
+
+void ntf_led_blink(enum notif_led_type led, bool on) {
+	// low battery blink RED, don't do a thing...
+	if (on && led == NTF_LED_RED && charge_level <= 15) return;
+	if (on) {
+#if 1
+// op6 - if blink starts too close to screen off, don't trigger notification event
+		unsigned int diff_screen_off = jiffies - screen_off_jiffies;
+		if (diff_screen_off <= 50) return;
+#endif
+		ntf_notify_listeners(NTF_EVENT_NOTIFICATION,1,"");
+	}
+}
+EXPORT_SYMBOL(ntf_led_blink);
 
 static int last_notification_number = 0;
 // registered sys uci listener
