@@ -1853,7 +1853,7 @@ static ssize_t qpnp_haptics_store_activate(struct device *dev,
 		// if not notification duration and boosting, but power percentage is set to 0, skip activation altogether...
 		int power_perc = uci_get_vibration_power_percentage();
 		ntf_vibration(chip->play_time_ms); // report vibration to notification driver
-		pr_info("%s [CLEANSLATE] power_perc = %d eval = %d\n",__func__,power_perc,(power_perc == 0 && (!notification_duration_detected || !smart_get_boost_on() || should_not_boost())));
+		pr_info("%s [CLEANSLATE] power_perc = %d eval = %d vib play_time %d \n",__func__,power_perc,(power_perc == 0 && (!notification_duration_detected || !smart_get_boost_on() || should_not_boost())), chip->play_time_ms);
 		if (power_perc == 0 && (!notification_duration_detected || !smart_get_boost_on() || should_not_boost())) return count;
 #endif
 		hrtimer_cancel(&chip->stop_timer);
