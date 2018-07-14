@@ -45,6 +45,6 @@ extern void uci_add_sys_listener(void (*f)(void));
 extern void uci_add_user_listener(void (*f)(void));
 
 /** write operations */
-extern void write_uci_out(void);
+extern void write_uci_out(char *message);
 
 #endif /* __UCI_H__ */
