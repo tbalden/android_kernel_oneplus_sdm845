@@ -85,6 +85,7 @@ void ntf_add_listener(void (*f)(char* event, int num_param, char* str_param)) {
 EXPORT_SYMBOL(ntf_add_listener);
 
 static bool screen_on = false, screen_on_early = false, screen_off_early = false;
+static unsigned long screen_on_jiffies = 0;
 
 // ======= SCREEN ON/OFF
 
@@ -92,6 +93,15 @@ bool ntf_is_screen_on(void) {
 	return screen_on;
 }
 EXPORT_SYMBOL(ntf_is_screen_on);
+bool ntf_is_screen_on_a_while(void) {
+	if (screen_on) {
+		unsigned int diff_screen_on = jiffies - screen_on_jiffies;
+		if (diff_screen_on >= 50) return true; // 500msec
+	}
+	return false;
+
+}
+EXPORT_SYMBOL(ntf_is_screen_on_a_while);
 bool ntf_is_screen_early_on(void) {
 	return screen_on_early;
 }
@@ -169,6 +179,7 @@ static int fb_notifier_callback(struct notifier_block *self,
 		if (first_unblank) {
 			first_unblank = 0;
 		}
+		screen_on_jiffies = jiffies;
 		screen_on = true;
 		screen_on_early = true;
 		screen_off_early = false;
