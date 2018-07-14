@@ -44,6 +44,7 @@ extern int smart_get_notification_level(int notif_type);
 
 // screen state queries
 extern bool ntf_is_screen_on(void);
+extern bool ntf_is_screen_on_a_while(void); // if a little bit of time passed since screen on...
 extern bool ntf_is_screen_early_on(void);
 extern bool ntf_is_screen_early_off(void);
 
