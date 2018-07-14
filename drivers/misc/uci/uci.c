@@ -121,13 +121,27 @@ static DEFINE_SPINLOCK(cfg_rw_lock);
 static DEFINE_SPINLOCK(cfg_w_lock);
 
 // --- write start
+char *krnl_cfg_queue[MAX_PARAMS];
+static int queue_length = 0;
+
+static int stamp = 0;
+static char stamps[10][3] = {"0\n\0","1\n\0","2\n\0","3\n\0","4\n\0","5\n\0","6\n\0","7\n\0","8\n\0","9\n\0"};
 
 void write_uci_krnl_cfg_file(void) {
 	// locking
 	struct file*fp = NULL;
-	char *to_write = "content\n";
 	int rc = 0;
+	int i = 0;
+	char to_write[1000];
 	spin_lock(&cfg_w_lock);
+	strcat((char*)to_write, "#cleanslate kernel out\n");
+	for (i=0; i<queue_length;i++) {
+		strcat((char*)to_write, krnl_cfg_queue[i]);
+		strcat((char*)to_write, "\n");
+	}
+	strcat((char*)to_write,stamps[stamp++]);
+	if (stamp==10) stamp = 0;
+	queue_length = 0;
 
 	pr_info("%s [CLEANSLATE] uci writing file kernel out...\n",__func__);
 	fp=uci_fopen (UCI_KERNEL_FILE, O_WRONLY|O_CREAT|O_TRUNC, 0);
@@ -147,7 +161,11 @@ static void write_uci_out_work_func(struct work_struct * write_uci_out_work)
 }
 static DECLARE_WORK(write_uci_out_work, write_uci_out_work_func);
 
-void write_uci_out(void) {
+void write_uci_out(char *message) {
+	spin_lock(&cfg_w_lock);
+	krnl_cfg_queue[queue_length] = message;
+	queue_length++;
+	spin_unlock(&cfg_w_lock);
 	schedule_work(&write_uci_out_work);
 }
 EXPORT_SYMBOL(write_uci_out);
