@@ -38,7 +38,7 @@
 
 #define DRIVER_AUTHOR "illes pal <illespal@gmail.com>"
 #define DRIVER_DESCRIPTION "uci driver"
-#define DRIVER_VERSION "1.1"
+#define DRIVER_VERSION "1.2"
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESCRIPTION);
@@ -143,6 +143,9 @@ void write_uci_krnl_cfg_file(void) {
 	if (stamp==10) stamp = 0;
 	queue_length = 0;
 
+	spin_unlock(&cfg_w_lock); // must unlock here, fopen may sleep
+	// UNLOCK
+
 	pr_info("%s [CLEANSLATE] uci writing file kernel out...\n",__func__);
 	fp=uci_fopen (UCI_KERNEL_FILE, O_WRONLY|O_CREAT|O_TRUNC, 0);
 	if (fp) {
@@ -151,8 +154,6 @@ void write_uci_krnl_cfg_file(void) {
 		uci_fclose(fp);
 		pr_info("%s [CLEANSLATE] uci closed file kernel out...\n",__func__);
 	}
-	spin_unlock(&cfg_w_lock);
-	// UNLOCK
 }
 
 static void write_uci_out_work_func(struct work_struct * write_uci_out_work)
