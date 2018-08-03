@@ -57,28 +57,28 @@ static bool shown_debug_stune = false;
 static bool shown_debug_input = false;
 static void uci_user_listener(void) {
 	boost_eas = uci_get_user_property_int_mm("boost_eas", 1, 0, 1);
-	boost_eas_level = uci_get_user_property_int_mm("boost_eas_level", 1, 0, 2);
+	boost_eas_level = uci_get_user_property_int_mm("boost_eas_level", 1, 0, 3);
 	boost_eas_level_ext = uci_get_user_property_int_mm("boost_eas_level_ext", 0, 0, 1);
 	pr_info("%s [CLEANSLATE] stune uci user listener %d %d %d\n",__func__,boost_eas,boost_eas_level,boost_eas_level_ext);
 	shown_debug_stune = false;
 	shown_debug_input = false;
 }
-static int boost_map[3] = { 9, 13, 20 };
+static int boost_map[4] = { 9, 13, 20, 25 };
 static int get_dynamic_stune_boost(void) {
 	int ret = 0;
 	if (boost_eas_level_ext) return dynamic_stune_boost;
-	ret = boost_map[boost_eas_level]; // 9 - 20;
+	ret = boost_map[boost_eas_level]; // 9 - 25;
 	if (!shown_debug_stune) {
 		shown_debug_stune = true;
 		pr_info("%s [CLEANSLATE] dynamic stune boost value %d\n",__func__,ret);
 	}
 	return ret;
 }
-static int input_ms_map[3] = { 60, 90, 120 };
+static int input_ms_map[4] = { 60, 90, 120, 450 };
 static int get_input_boost_ms(void) {
 	int ret = 0;
 	if (!boost_eas || boost_eas_level_ext) return input_boost_ms;
-	ret = input_ms_map[boost_eas_level]; // 1300 - 1500 msec;
+	ret = input_ms_map[boost_eas_level]; // 60 - 450 msec;
 	if (!shown_debug_input) {
 		shown_debug_input = true;
 		pr_info("%s [CLEANSLATE] input boost ms value %d\n",__func__,ret);

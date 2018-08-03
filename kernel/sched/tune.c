@@ -46,13 +46,13 @@ static bool shown_debug_stune = false;
 static bool shown_debug_do_boost = false;
 static void uci_user_listener(void) {
     boost_eas = uci_get_user_property_int_mm("boost_eas", 1, 0, 1);
-    boost_eas_level = uci_get_user_property_int_mm("boost_eas_level", 1, 0, 2);
+    boost_eas_level = uci_get_user_property_int_mm("boost_eas_level", 1, 0, 3);
     boost_eas_level_ext = uci_get_user_property_int_mm("boost_eas_level_ext", 0, 0, 1);
     pr_info("%s [CLEANSLATE] tune - stune uci user listener %d %d %d\n",__func__,boost_eas,boost_eas_level,boost_eas_level_ext);
     shown_debug_stune = false;
     shown_debug_do_boost = false;
 }
-static int boost_map[3] = { 9, 13, 20 };
+static int boost_map[4] = { 9, 13, 20, 20 };
 static int get_dynamic_stune_boost(void) {
     int ret = 0;
     if (boost_eas_level_ext) return 0;//dynamic_stune_boost;
