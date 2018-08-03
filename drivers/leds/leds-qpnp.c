@@ -608,13 +608,13 @@ static int get_bln_rgb_batt_colored_discrete(void) {
     return uci_get_user_property_int_mm("bln_rgb_batt_colored_discrete", 0, 0, 1);
 }
 static int get_bln_rgb_batt_colored_lvl_0(void) {
-    return uci_get_user_property_int_mm("bln_rgb_batt_colored_lvl_0", colored_charge_level_0, 0, 99);
+    return uci_get_user_property_int_mm("bln_rgb_batt_colored_lvl_0", colored_charge_level_0, 0, 100);
 }
 static int get_bln_rgb_batt_colored_lvl_1(void) {
-    return uci_get_user_property_int_mm("bln_rgb_batt_colored_lvl_1", colored_charge_level_1, 0, 99);
+    return uci_get_user_property_int_mm("bln_rgb_batt_colored_lvl_1", colored_charge_level_1, 0, 100);
 }
 static int get_bln_rgb_batt_colored_lvl_2(void) {
-    return uci_get_user_property_int_mm("bln_rgb_batt_colored_lvl_2", colored_charge_level_2, 0, 99);
+    return uci_get_user_property_int_mm("bln_rgb_batt_colored_lvl_2", colored_charge_level_2, 0, 100);
 }
 
 static int get_rgb_batt_colored(void) {
