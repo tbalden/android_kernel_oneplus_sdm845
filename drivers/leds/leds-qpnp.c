@@ -1896,17 +1896,19 @@ static void qpnp_led_set(struct led_classdev *led_cdev,
 		} else {
 			charging_led_dash = false;
 		}
-		if (led->id==led_g->id) {
-			charging_led_full = true;
-			last_level = -1;
-		} else {
-			charging_led_full = false;
-		}
 		if (led->id==led_r->id) {
 			charging_led = true;
 			last_level = -1;
 		} else {
 			charging_led = false;
+		}
+		// on aosp roms, put this last... green and red can be both 255 while not full..
+		if (led->id==led_g->id) {
+			charging_led_full = true;
+			charging_led = true;
+			last_level = -1;
+		} else {
+			charging_led_full = false;
 		}
 	}
 	pr_info("%s led set id: %d val: %d charging_led %d dash %d full %d \n",__func__,led->id,value,charging_led,charging_led_dash,charging_led_full);
