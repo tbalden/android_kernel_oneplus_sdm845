@@ -39,7 +39,7 @@
 
 #define DRIVER_AUTHOR "illes pal <illespal@gmail.com>"
 #define DRIVER_DESCRIPTION "uci notifications driver"
-#define DRIVER_VERSION "1.0"
+#define DRIVER_VERSION "1.1"
 
 //#define NTF_D_LOG
 
@@ -247,6 +247,7 @@ static int fb_notifier_callback(
 		screen_off_early = true;
 		wake_by_user = false;
 		screen_off_jiffies = jiffies;
+		ntf_notify_listeners(NTF_SCREEN_OFF,1,"");
 	    break;
 	case MSM_DRM_BLANK_UNBLANK:
 		pr_info("ntf uci screen oh\n");
@@ -317,9 +318,14 @@ static void uci_sys_listener(void) {
         pr_info("%s [CLEANSLATE] sys listener... \n",__func__);
         {
                 bool ringing_new = !!uci_get_sys_property_int_mm("ringing", 0, 0, 1);
+                bool proximity_new = !!uci_get_sys_property_int_mm("proximity", 0, 0, 1);
                 ntf_face_down = !!uci_get_sys_property_int_mm("face_down", 0, 0, 1);
-                ntf_proximity = !!uci_get_sys_property_int_mm("proximity", 0, 0, 1);
                 ntf_silent = !!uci_get_sys_property_int_mm("silent", 0, 0, 1);
+
+		if (proximity_new != ntf_proximity) {
+			ntf_proximity = proximity_new;
+			ntf_notify_listeners(NTF_EVENT_PROXIMITY, ntf_proximity?1:0, "");
+		}
 
                 if (ringing_new && !ntf_ringing) {
 			ntf_notify_listeners(NTF_EVENT_RINGING, 1, "");
