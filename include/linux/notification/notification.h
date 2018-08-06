@@ -28,6 +28,8 @@ enum notif_led_type {
 #define NTF_EVENT_CHARGE_STATE "charge_state"
 #define NTF_EVENT_CHARGE_LEVEL "charge_level"
 #define NTF_WAKE_BY_USER "wake_by_user"
+#define NTF_SCREEN_OFF "screen_off"
+#define NTF_EVENT_PROXIMITY "proximity"
 
 #define NTF_EVENT_NOTIFICATION_ARG_HAPTIC "haptic"
 
