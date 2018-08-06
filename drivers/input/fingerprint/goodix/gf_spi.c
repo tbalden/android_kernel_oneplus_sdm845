@@ -56,6 +56,11 @@
 
 #include "../fingerprint_detect/fingerprint_detect.h"
 
+#ifdef CONFIG_UCI_NOTIFICATIONS
+#include <linux/notification/notification.h>
+#include <linux/uci/uci.h>
+#endif
+
 #define VER_MAJOR   1
 #define VER_MINOR   2
 #define PATCH_LEVEL 8
@@ -648,6 +653,45 @@ static const struct file_operations gf_fops = {
 #endif
 };
 
+#ifdef CONFIG_UCI_NOTIFICATIONS
+static void uci_proximity_state(bool val) {
+	struct gf_dev *gf_dev = &gf;
+	gf_dev->proximity_state = !!val;
+	if (gf_dev->proximity_state) {
+		gf_disable_irq(gf_dev);
+	} else {
+		gf_enable_irq(gf_dev);
+	}
+}
+static bool proximity = false;
+static void ntf_listener(char* event, int num_param, char* str_param) {
+	if (!strcmp(event,NTF_EVENT_PROXIMITY)) {
+		if (!!num_param) {
+			if (uci_get_user_property_int_mm("fp_proximity_block", 0, 0, 1) && !ntf_is_screen_on()) {
+				// in proximity, blocking is set on in cfg, screen is off... do it
+				uci_proximity_state(true);
+			}
+		} else {
+			// out of proximity...enable fp
+			uci_proximity_state(false);
+		}
+		proximity = !!num_param;
+	} else
+	if (!strcmp(event,NTF_WAKE_BY_USER)) {
+		// screen on, enable fp
+		uci_proximity_state(false);
+	} else
+	if (!strcmp(event,NTF_SCREEN_OFF)) {
+		if (proximity) {
+			// screen just off and already proximity sensor is covered, do it..
+			if (uci_get_user_property_int_mm("fp_proximity_block", 0, 0, 1)) {
+				uci_proximity_state(true);
+			}
+		}
+	}
+}
+#endif
+
 static ssize_t proximity_state_set(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
@@ -945,7 +989,9 @@ static int gf_probe(struct platform_device *pdev)
 		goto error_input;
 	}
 	pr_info("version V%d.%d.%02d\n", VER_MAJOR, VER_MINOR, PATCH_LEVEL);
-
+#ifdef CONFIG_UCI_NOTIFICATIONS
+	ntf_add_listener(ntf_listener);
+#endif
 	return status;
 
 #ifdef AP_CONTROL_CLK
