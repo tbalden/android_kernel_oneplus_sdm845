@@ -119,5 +119,5 @@ all.config
 # fetched Android config fragments
 kernel/configs/android-*.cfg
 
-out_op6_def
+out
 _buildmodules_op6
