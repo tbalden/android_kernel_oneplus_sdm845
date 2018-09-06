@@ -443,7 +443,7 @@ static void uci_user_listener(void) {
 
 	if (first_brightness_set && change) {
 		if (last_brightness!=LED_OFF && ntf_is_screen_on()) {
-			dsi_display_set_backlight(main_display, last_brightness);
+			dsi_display_set_backlight(primary_display, last_brightness);
 		}
 	}
 }
