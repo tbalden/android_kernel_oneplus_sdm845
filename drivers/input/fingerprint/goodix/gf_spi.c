@@ -863,7 +863,6 @@ static int gf_probe(struct platform_device *pdev)
 #endif
 {
 	struct gf_dev *gf_dev = &gf;
-	struct device *dev = &pdev->dev;
 	int status = -EINVAL;
 	unsigned long minor;
 	int i;
@@ -977,11 +976,11 @@ static int gf_probe(struct platform_device *pdev)
 		pr_err("Unable to register msm_drm_notifier: %d\n", status);
 #endif
 
-	#ifdef USE_SPI_BUS
+#ifdef USE_SPI_BUS
 		spi_set_drvdata(spi, gf_dev);
-	#else
+#else
 		platform_set_drvdata(pdev, gf_dev);
-	#endif
+#endif
 	status = sysfs_create_group(&gf_dev->spi->dev.kobj,
 			&gf_attribute_group);
 	if (status) {
