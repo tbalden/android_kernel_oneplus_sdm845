@@ -160,6 +160,21 @@ struct pm_qos_request pm_qos_req_tp;
 #define SingleTap           15  // single tap
 
 //ruanbanmao@BSP add for tp gesture 2015-05-06, begin
+
+#ifdef VENDOR_EDIT_OXYGEN
+#define KEY_GESTURE_W          	246 //w
+#define KEY_GESTURE_M      		247 //m
+#define KEY_GESTURE_S			248 //s
+#define KEY_DOUBLE_TAP          249 // double tap to wake
+#define KEY_GESTURE_CIRCLE      250 // draw circle to lunch camera
+#define KEY_GESTURE_TWO_SWIPE	251 // swipe two finger vertically to play/pause
+#define KEY_GESTURE_V           252 // draw v to toggle flashlight
+#define KEY_GESTURE_LEFT_V      253 // draw left arrow for previous track
+#define KEY_GESTURE_RIGHT_V     254 // draw right arrow for next track
+#endif // ifdef VENDOR_EDIT_OXYGEN
+
+
+
 #define BIT0 (0x1 << 0)
 #define BIT1 (0x1 << 1)
 #define BIT2 (0x1 << 2)
@@ -189,7 +204,7 @@ int Single_gesture = 0; //"(SingleTap)"
 int Enable_gesture =0;
 static int gesture_switch = 0;
 //ruanbanmao@BSP add for tp gesture 2015-05-06, end
-#endif
+#endif // ifdef SUPPORT_GESTURE
 
 /*********************for Debug LOG switch*******************/
 #define TPD_ERR(a, arg...)  pr_err(TPD_DEVICE ": " a, ##arg)
@@ -235,11 +250,11 @@ int recored_pointy[2] = {0, 0};
 
 #ifdef SUPPORT_TP_SLEEP_MODE
 static int sleep_enable;
-#endif
+#endif // ifdef SUPPORT_TP_SLEEP_MODE
 #ifdef SUPPORT_TP_TOUCHKEY
 static int key_switch = 0;
 static bool key_back_disable=false,key_appselect_disable=false;
-#endif
+#endif // ifdef SUPPORT_TP_TOUCHKEY
 static struct synaptics_ts_data *ts_g = NULL;
 static struct workqueue_struct *synaptics_wq = NULL;
 static struct workqueue_struct *synaptics_report = NULL;
@@ -262,7 +277,7 @@ static struct Coordinate Point_1st;
 static struct Coordinate Point_2nd;
 static struct Coordinate Point_3rd;
 static struct Coordinate Point_4th;
-#endif
+#endif // ifdef SUPPORT_GESTURE
 
 /*-----------------------------------------Global Registers----------------------------------------------*/
 static unsigned short SynaF34DataBase;
@@ -330,7 +345,7 @@ static int F54_ANALOG_QUERY_BASE;//0x73
 static int F54_ANALOG_COMMAND_BASE;//0x72
 static int F54_ANALOG_CONTROL_BASE;//0x0d
 static int F54_ANALOG_DATA_BASE;//0x00
-#endif
+#endif // if TP_TEST_ENABLE
 
 /*------------------------------------------Fuction Declare----------------------------------------------*/
 static int synaptics_i2c_suspend(struct device *dev);
@@ -789,7 +804,7 @@ static int synaptics_read_register_map(struct synaptics_ts_data *ts)
 			F54_CTRL_BASE	= %x \n\
 			F54_DATA_BASE	= %x \n\
 			", F54_ANALOG_QUERY_BASE, F54_ANALOG_COMMAND_BASE , F54_ANALOG_CONTROL_BASE, F54_ANALOG_DATA_BASE);
-#endif
+#endif // if TP_TEST_ENABLE
 	ret = synaptics_rmi4_i2c_write_byte(ts->client, 0xff, 0x00);
 	return 0;
 }
@@ -828,7 +843,7 @@ static int synaptics_enable_interrupt_for_gesture(struct synaptics_ts_data *ts, 
 	gesture = UnkownGestrue;
 	return 0;
 }
-#endif
+#endif // ifdef SUPPORT_GESTURE
 
 #ifdef SUPPORT_GLOVES_MODE
 #define GLOVES_ADDR 0x001f //0x001D 0x001f
@@ -872,7 +887,7 @@ static int synaptics_glove_mode_enable(struct synaptics_ts_data *ts)
 GLOVE_ENABLE_END:
 	return ret;
 }
-#endif
+#endif // ifdef SUPPORT_GLOVES_MOD
 
 #ifdef SUPPORT_TP_SLEEP_MODE
 static int synaptics_sleep_mode_enable(struct synaptics_ts_data *ts)
@@ -909,7 +924,7 @@ static int synaptics_sleep_mode_enable(struct synaptics_ts_data *ts)
 SLEEP_ENABLE_END:
 	return ret;
 }
-#endif
+#endif // ifdef SUPPORT_TP_SLEEP_MODE
 
 static int synaptics_read_product_id(struct synaptics_ts_data *ts)
 {
@@ -997,32 +1012,7 @@ static void delay_qt_ms(unsigned long  w_ms)
 		}
 	}
 }
-/*
-static void int_state(struct synaptics_ts_data *ts)
-{
-	int ret = -1;
-	ret = i2c_smbus_write_byte_data(ts->client, F01_RMI_CMD00, 0x01);
-	if(ret){
-		TPD_ERR("%s:error cannot reset touch panel!\n",__func__);
-		return;
-	}
-	//delay_qt_ms(170);
-	delay_qt_ms(100);
-#ifdef SUPPORT_GLOVES_MODE
-	synaptics_glove_mode_enable(ts);
-#endif
-	ret = synaptics_init_panel(ts);
-	if( ret < 0 ){
-		TPD_DEBUG("%s:error cannot change mode!\n",__func__);
-		return;
-	}
-	ret = synaptics_enable_interrupt(ts, 1);
-	if(ret){
-		TPD_DEBUG("%s:error cannot enable interrupt!\n",__func__);
-		return;
-	}
-}
-*/
+
 /*Added for larger than 32 length read!*/
 
 int synaptics_rmi4_i2c_read_block(
@@ -1499,6 +1489,47 @@ static void gesture_judge(struct synaptics_ts_data *ts)
 			break;
 		}
 
+// carlo@oneplus.net 2015-05-25, begin.
+#ifdef VENDOR_EDIT_OXYGEN
+	keyCode = UnkownGestrue;
+	// Get key code based on registered gesture.
+	switch (gesture) {
+		case DouTap:
+			keyCode = KEY_DOUBLE_TAP;
+			break;
+		case UpVee:
+			keyCode = KEY_GESTURE_V;
+			break;
+		case DownVee:
+			keyCode = KEY_GESTURE_V;
+			break;
+		case LeftVee:
+			keyCode = KEY_GESTURE_RIGHT_V;
+			break;
+		case RightVee:
+			keyCode = KEY_GESTURE_LEFT_V;
+			break;
+		case Circle:
+			keyCode = KEY_GESTURE_CIRCLE;
+			break;
+		case DouSwip:
+			keyCode = KEY_GESTURE_TWO_SWIPE;
+			break;
+		case Wgestrue:
+			keyCode = KEY_GESTURE_W;
+			break;
+		case Mgestrue:
+			keyCode = KEY_GESTURE_M;
+			break;
+		case Sgestrue:
+			keyCode = KEY_GESTURE_S;
+			break;
+		default:
+			break;
+	}
+#endif
+// carlo@oneplus.net 2015-05-25, end.
+
 	TPD_ERR("detect %s gesture\n", gesture == DouTap ? "(double tap)" :
 			gesture == UpVee ? "(V)" :
 			gesture == DownVee ? "(^)" :
@@ -1540,7 +1571,8 @@ static void gesture_judge(struct synaptics_ts_data *ts)
 	}
     TPD_DEBUG("%s end!\n",__func__);
 }
-#endif
+#endif // ifdef SUPPORT_GESTURE
+
 /***************end****************/
 static char prlog_count = 0;
 #ifdef REPORT_2D_PRESSURE
@@ -3554,6 +3586,14 @@ static int	synaptics_input_init(struct synaptics_ts_data *ts)
 	set_bit(BTN_TOOL_FINGER, ts->input_dev->keybit);
 #ifdef SUPPORT_GESTURE
 	set_bit(KEY_F4 , ts->input_dev->keybit);//doulbe-tap resume
+#ifdef VENDOR_EDIT_OXYGEN
+	set_bit(KEY_DOUBLE_TAP, ts->input_dev->keybit);
+	set_bit(KEY_GESTURE_CIRCLE, ts->input_dev->keybit);
+	set_bit(KEY_GESTURE_V, ts->input_dev->keybit);
+	set_bit(KEY_GESTURE_TWO_SWIPE, ts->input_dev->keybit);
+	set_bit(KEY_GESTURE_LEFT_V, ts->input_dev->keybit);
+	set_bit(KEY_GESTURE_RIGHT_V, ts->input_dev->keybit);
+#endif
 	set_bit(KEY_APPSELECT, ts->input_dev->keybit);
 	set_bit(KEY_BACK, ts->input_dev->keybit);
 #endif
@@ -6196,7 +6236,6 @@ static void speedup_synaptics_resume(struct work_struct *work)
 	int ret;
 	struct synaptics_ts_data *ts = ts_g;
 
-/*#ifdef SUPPORT_SLEEP_POWEROFF*/
 	TPD_DEBUG("%s enter!\n", __func__);
 	if (ts->support_hw_poweroff) {
 		if (ts->gesture_enable == 0) {
@@ -6210,7 +6249,6 @@ static void speedup_synaptics_resume(struct work_struct *work)
 		}
 	}
 	TPD_DEBUG("%s end!\n", __func__);
-/*#endif*/
 }
 
 static int synaptics_ts_resume(struct device *dev)
@@ -6258,7 +6296,6 @@ static int synaptics_i2c_suspend(struct device *dev)
 		/*enable gpio wake system through intterrupt*/
 		enable_irq_wake(ts->irq);
 	}
-//#ifdef SUPPORT_SLEEP_POWEROFF
 	if(ts->loading_fw) {
 		TPD_ERR("FW is updating while suspending");
 		return -1;
