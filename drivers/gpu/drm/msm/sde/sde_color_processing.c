@@ -27,6 +27,10 @@
 #include "dsi_panel.h"
 #include "sde_hw_color_processing.h"
 
+#if 1
+#include <linux/uci/uci.h>
+#endif
+
 struct sde_cp_node {
 	u32 property_id;
 	u32 prop_flags;
@@ -1095,6 +1099,19 @@ exit:
 
 }
 
+#if 1
+struct drm_crtc *g_pcc_crtc;
+struct drm_property *g_pcc_property;
+uint64_t g_pcc_val;
+void kcal_force_update(void);
+
+static bool first_init = true;
+static void uci_user_listener(void) {
+        kcal_force_update();
+}
+
+#endif
+
 int sde_cp_crtc_set_property(struct drm_crtc *crtc,
 				struct drm_property *property,
 				uint64_t val)
@@ -1127,6 +1144,18 @@ int sde_cp_crtc_set_property(struct drm_crtc *crtc,
 		ret = -ENOENT;
 		goto exit;
 	}
+#if 1
+	if (prop_node->feature == SDE_CP_CRTC_DSPP_PCC) {
+		pr_info("%s pcc kad kcal\n",__func__);
+		g_pcc_crtc = crtc;
+		g_pcc_property = property;
+		g_pcc_val = val;
+		if (first_init) {
+			uci_add_user_listener(uci_user_listener);
+			first_init = false;
+		}
+	}
+#endif
 
 	/**
 	 * sde_crtc is virtual ensure that hardware has been attached to the
@@ -1188,6 +1217,15 @@ exit:
 	mutex_unlock(&sde_crtc->crtc_cp_lock);
 	return ret;
 }
+#if 1
+void kcal_force_update(void) {
+	if (g_pcc_crtc) {
+		pr_info("%s force kad kcal\n",__func__);
+		sde_cp_crtc_set_property(g_pcc_crtc, g_pcc_property, g_pcc_val);
+	}
+}
+EXPORT_SYMBOL(kcal_force_update);
+#endif
 
 int sde_cp_crtc_get_property(struct drm_crtc *crtc,
 			     struct drm_property *property, uint64_t *val)
