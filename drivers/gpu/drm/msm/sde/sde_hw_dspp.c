@@ -70,7 +70,7 @@ static void _setup_dspp_ops(struct sde_hw_dspp *c, unsigned long features)
 #endif
 			else if (c->cap->sblk->pcc.version ==
 					(SDE_COLOR_PROCESS_VER(0x4, 0x0))) {
-				ret = reg_dmav1_init_dspp_op_v4(i, c->idx);
+				ret = 1; // reg_dmav1_init_dspp_op_v4(i, c->idx); use the sde one instead, with correct hsic settings possibilities
 				if (!ret)
 #if 1
 				{
