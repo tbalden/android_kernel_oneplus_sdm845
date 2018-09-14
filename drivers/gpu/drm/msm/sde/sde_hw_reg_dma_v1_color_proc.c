@@ -14,6 +14,10 @@
 #include "sde_hw_reg_dma_v1_color_proc.h"
 #include "sde_hw_color_proc_common_v4.h"
 
+#if 1
+#include <linux/uci/uci.h>
+#endif
+
 /* Reserve space of 128 words for LUT dma payload set-up */
 #define REG_DMA_HEADERS_BUFFER_SZ (sizeof(u32) * 128)
 
@@ -841,6 +845,127 @@ static void _dspp_pccv4_off(struct sde_hw_dspp *ctx, void *cfg)
 		DRM_ERROR("failed to kick off ret %d\n", rc);
 }
 
+#if 0
+void reg_dmav1_setup_dspp_pa_hsicv18_kcal(struct sde_hw_dspp *ctx, void *cfg)
+{
+	struct sde_hw_reg_dma_ops *dma_ops;
+	struct sde_reg_dma_kickoff_cfg kick_off;
+	struct sde_hw_cp_cfg *hw_cfg = cfg;
+	struct sde_reg_dma_setup_ops_cfg dma_write_cfg;
+//	struct drm_msm_pa_hsic *hsic_cfg;
+	u32 reg = 0, opcode = 0, local_opcode = 0;
+	int rc;
+
+	int enable = 0;
+	int sat=255, hue=0, cont=255, val = 255;
+
+	opcode = SDE_REG_READ(&ctx->hw, ctx->cap->sblk->hsic.base);
+
+//	rc = reg_dma_dspp_check(ctx, cfg, HSIC);
+//	if (rc)
+//		return;
+	pr_info("%s [CLEANSLATE] kcal setup... \n",__func__);
+        enable = uci_get_user_property_int_mm("kcal_enable", enable, 0, 1);
+        sat = uci_get_user_property_int_mm("kcal_sat", sat, 128, 383);
+	// don't add HUE, not much useful
+        //hue = uci_get_user_property_int_mm("kcal_hue", hue, 0, 255);
+        cont = uci_get_user_property_int_mm("kcal_cont", cont,128, 383);
+        val = uci_get_user_property_int_mm("kcal_val", val, 128, 383);
+	if (!enable) {
+		// disabled, return to defaults
+		sat = 255;
+		cont = 255;
+		val = 255;
+		hue = 0;
+	}
+
+
+//	hsic_cfg = hw_cfg->payload;
+
+	dma_ops = sde_reg_dma_get_ops();
+	dma_ops->reset_reg_dma_buf(dspp_buf[HSIC][ctx->idx]);
+
+	REG_DMA_INIT_OPS(dma_write_cfg, dspp_mapping[ctx->idx],
+		HSIC, dspp_buf[HSIC][ctx->idx]);
+
+	REG_DMA_SETUP_OPS(dma_write_cfg, 0, NULL, 0, HW_BLK_SELECT, 0, 0);
+	rc = dma_ops->setup_payload(&dma_write_cfg);
+	if (rc) {
+		DRM_ERROR("write decode select failed ret %d\n", rc);
+		return;
+	}
+
+//	if (hsic_cfg->flags & PA_HSIC_HUE_ENABLE) 
+	{
+		reg = hue & PA_HUE_MASK;
+		REG_DMA_SETUP_OPS(dma_write_cfg,
+			ctx->cap->sblk->hsic.base + PA_HUE_OFF,
+			&reg, sizeof(reg), REG_SINGLE_WRITE, 0, 0);
+		rc = dma_ops->setup_payload(&dma_write_cfg);
+		if (rc) {
+			DRM_ERROR("hsic hue write failed ret %d\n", rc);
+			return;
+		}
+		local_opcode |= PA_HUE_EN;
+	}
+//	if (hsic_cfg->flags & PA_HSIC_SAT_ENABLE) 
+	{
+		reg = sat & PA_SAT_MASK;
+		REG_DMA_SETUP_OPS(dma_write_cfg,
+			ctx->cap->sblk->hsic.base + PA_SAT_OFF,
+			&reg, sizeof(reg), REG_SINGLE_WRITE, 0, 0);
+		rc = dma_ops->setup_payload(&dma_write_cfg);
+		if (rc) {
+			DRM_ERROR("hsic saturation write failed ret %d\n", rc);
+			return;
+		}
+		local_opcode |= PA_SAT_EN;
+	}
+//	if (hsic_cfg->flags & PA_HSIC_VAL_ENABLE) 
+	{
+		reg = val & PA_VAL_MASK;
+		REG_DMA_SETUP_OPS(dma_write_cfg,
+			ctx->cap->sblk->hsic.base + PA_VAL_OFF,
+			&reg, sizeof(reg), REG_SINGLE_WRITE, 0, 0);
+		rc = dma_ops->setup_payload(&dma_write_cfg);
+		if (rc) {
+			DRM_ERROR("hsic value write failed ret %d\n", rc);
+			return;
+		}
+		local_opcode |= PA_VAL_EN;
+	}
+//	if (hsic_cfg->flags & PA_HSIC_CONT_ENABLE) 
+	{
+		reg = cont & PA_CONT_MASK;
+		REG_DMA_SETUP_OPS(dma_write_cfg,
+			ctx->cap->sblk->hsic.base + PA_CONT_OFF,
+			&reg, sizeof(reg), REG_SINGLE_WRITE, 0, 0);
+		rc = dma_ops->setup_payload(&dma_write_cfg);
+		if (rc) {
+			DRM_ERROR("hsic contrast write failed ret %d\n", rc);
+			return;
+		}
+		local_opcode |= PA_CONT_EN;
+	}
+
+	if (local_opcode)
+		opcode |= (local_opcode | PA_EN);
+	else {
+		DRM_ERROR("Invalid hsic config\n");
+		return;
+	}
+
+	REG_DMA_SETUP_KICKOFF(kick_off, hw_cfg->ctl, dspp_buf[HSIC][ctx->idx],
+			REG_DMA_WRITE, DMA_CTL_QUEUE0, WRITE_IMMEDIATE);
+	rc = dma_ops->kick_off(&kick_off);
+	if (rc)
+		DRM_ERROR("failed to kick off ret %d\n", rc);
+
+	SDE_REG_WRITE(&ctx->hw, ctx->cap->sblk->hsic.base, opcode);
+}
+
+#endif
+
 void reg_dmav1_setup_dspp_pccv4(struct sde_hw_dspp *ctx, void *cfg)
 {
 	struct sde_hw_reg_dma_ops *dma_ops;
@@ -852,6 +977,20 @@ void reg_dmav1_setup_dspp_pccv4(struct sde_hw_dspp *ctx, void *cfg)
 	u32 *data = NULL;
 	int rc, i = 0;
 	u32 reg = 0;
+
+#if 0
+	int enable = 0, r=255,g=255,b=255, min = 20;
+
+	pr_info("%s [CLEANSLATE] kcal setup... \n",__func__);
+        enable = uci_get_user_property_int_mm("kcal_enable", enable, 0, 1);
+        r = uci_get_user_property_int_mm("kcal_red", r, 0, 256);
+        g = uci_get_user_property_int_mm("kcal_green", g, 0, 256);
+        b = uci_get_user_property_int_mm("kcal_blue", b, 0, 256);
+        min = uci_get_user_property_int_mm("kcal_min", min, 0, 256);
+	if (r<min) r= min;
+	if (g<min) g= min;
+	if (b<min) b= min;
+#endif
 
 	rc = reg_dma_dspp_check(ctx, cfg, PCC);
 	if (rc)
@@ -914,8 +1053,23 @@ void reg_dmav1_setup_dspp_pccv4(struct sde_hw_dspp *ctx, void *cfg)
 		}
 
 		data[i] = coeffs->c;
+#if 0
+		if (enable && i==0) {
+			data[i + 3] = (coeffs->r * r) / 256;
+		} else
+#endif
 		data[i + 3] = coeffs->r;
+#if 0
+		if (enable && i==1) {
+			data[i + 6] = (coeffs->g * g) / 256;
+		} else
+#endif
 		data[i + 6] = coeffs->g;
+#if 0
+		if (enable && i==2) {
+			data[i + 9] = (coeffs->b * b) / 256;
+		} else
+#endif
 		data[i + 9] = coeffs->b;
 		data[i + 12] = coeffs->rg;
 		data[i + 15] = coeffs->rb;
@@ -949,6 +1103,10 @@ void reg_dmav1_setup_dspp_pccv4(struct sde_hw_dspp *ctx, void *cfg)
 	if (rc)
 		DRM_ERROR("failed to kick off ret %d\n", rc);
 
+#if 0
+	reg_dmav1_setup_dspp_pa_hsicv18_kcal(ctx,cfg);
+#endif
+
 exit:
 	kfree(data);
 }
@@ -962,12 +1120,31 @@ void reg_dmav1_setup_dspp_pa_hsicv18(struct sde_hw_dspp *ctx, void *cfg)
 	struct drm_msm_pa_hsic *hsic_cfg;
 	u32 reg = 0, opcode = 0, local_opcode = 0;
 	int rc;
-
+#if 0
+	int enable = 0;
+	int sat=255, hue=0, cont=255, val = 255;
+#endif
 	opcode = SDE_REG_READ(&ctx->hw, ctx->cap->sblk->hsic.base);
 
 	rc = reg_dma_dspp_check(ctx, cfg, HSIC);
 	if (rc)
 		return;
+#if 0
+	pr_info("%s [CLEANSLATE] kcal setup... \n",__func__);
+        enable = uci_get_user_property_int_mm("kcal_enable", enable, 0, 1);
+        sat = uci_get_user_property_int_mm("kcal_sat", sat, 128, 383);
+	// don't add HUE, not much useful
+        //hue = uci_get_user_property_int_mm("kcal_hue", hue, 0, 255);
+        cont = uci_get_user_property_int_mm("kcal_cont", cont,128, 383);
+        val = uci_get_user_property_int_mm("kcal_val", val, 128, 383);
+	if (!enable) {
+		// disabled, return to defaults
+		sat = 255;
+		cont = 255;
+		val = 255;
+		hue = 0;
+	}
+#endif
 
 	if (!hw_cfg->payload) {
 		DRM_DEBUG_DRIVER("disable pa hsic feature\n");
