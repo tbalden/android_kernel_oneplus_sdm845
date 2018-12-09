@@ -168,6 +168,8 @@ enum {
 };
 
 #ifdef CONFIG_SOUND_CONTROL
+static bool headphone_jack = true;
+
 static struct snd_soc_codec *sound_control_codec_ptr;
 static int custom_hp_left = 0;
 static int custom_hp_right = 0;
@@ -1477,10 +1479,12 @@ rtn:
 				      rx_port_value, e, update);
 
 #ifdef CONFIG_SOUND_CONTROL
-	snd_soc_write(sound_control_codec_ptr, WCD934X_CDC_RX1_RX_VOL_MIX_CTL, custom_hp_left);
-	snd_soc_write(sound_control_codec_ptr, WCD934X_CDC_RX2_RX_VOL_MIX_CTL, custom_hp_right);
-	snd_soc_write(sound_control_codec_ptr, WCD934X_CDC_RX1_RX_VOL_CTL, custom_hp_left);
-	snd_soc_write(sound_control_codec_ptr, WCD934X_CDC_RX2_RX_VOL_CTL, custom_hp_right);
+	if (headphone_jack) {
+		snd_soc_write(sound_control_codec_ptr, WCD934X_CDC_RX1_RX_VOL_MIX_CTL, custom_hp_left);
+		snd_soc_write(sound_control_codec_ptr, WCD934X_CDC_RX2_RX_VOL_MIX_CTL, custom_hp_right);
+		snd_soc_write(sound_control_codec_ptr, WCD934X_CDC_RX1_RX_VOL_CTL, custom_hp_left);
+		snd_soc_write(sound_control_codec_ptr, WCD934X_CDC_RX2_RX_VOL_CTL, custom_hp_right);
+	}
 #endif
 
 	return 0;
@@ -10101,7 +10105,6 @@ static const unsigned int plug_type_extcon_tab[] = {
 
 #ifdef CONFIG_SOUND_CONTROL
 static int speaker_gain_val = 6;
-static bool headphone_jack = true;
 int sound_control_speaker_gain(int gain);
 
 static int __init get_model(char *cmdline_model)
@@ -10281,7 +10284,7 @@ static void uci_user_listener(void) {
 
 	if (!sound_switch) return; // disabled
 
-	if (speaker_gain_new != speaker_gain) {
+	if (headphone_jack && speaker_gain_new != speaker_gain) {
 		speaker_gain = speaker_gain_new;
 		speaker_gain_val = sound_control_speaker_gain(speaker_gain);
 	}
@@ -10293,13 +10296,13 @@ static void uci_user_listener(void) {
 		mic_gain = mic_gain_new;
 		snd_soc_write(sound_control_codec_ptr, WCD934X_CDC_TX7_TX_VOL_CTL, mic_gain);
 	}
-	if (hp_l_gain_new != hp_l_gain) {
+	if (headphone_jack && hp_l_gain_new != hp_l_gain) {
 		custom_hp_left = hp_l_gain_new;
 		hp_l_gain = hp_l_gain_new;
 		snd_soc_write(sound_control_codec_ptr, WCD934X_CDC_RX1_RX_VOL_MIX_CTL, hp_l_gain);
 		snd_soc_write(sound_control_codec_ptr, WCD934X_CDC_RX1_RX_VOL_CTL, hp_l_gain);
 	}
-	if (hp_r_gain_new != hp_r_gain) {
+	if (headphone_jack && hp_r_gain_new != hp_r_gain) {
 		custom_hp_right = hp_r_gain_new;
 		hp_r_gain = hp_r_gain_new;
 		snd_soc_write(sound_control_codec_ptr, WCD934X_CDC_RX2_RX_VOL_MIX_CTL, hp_r_gain);
