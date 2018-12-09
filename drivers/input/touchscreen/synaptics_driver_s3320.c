@@ -44,6 +44,7 @@
 #include <linux/syscalls.h>
 #include <linux/timer.h>
 #include <linux/time.h>
+#include <linux/pm_wakeup.h>
 
 /*modify by morgan.gu for sdm845 */
 #define CONFIG_MSM_RDM_NOTIFY
@@ -491,6 +492,7 @@ struct synaptics_ts_data {
 	int regulator_avdd_vmin;
 	int regulator_avdd_vmax;
 	int regulator_avdd_current;
+	struct wakeup_source	source;
 
 	uint32_t irq_flags;
 	uint32_t max_x;
@@ -1756,11 +1758,6 @@ void int_touch(void)
 
 	last_status = current_status & 0x02;
 
-	if (ts->project_version == 0x03) {
-		if (ts->en_up_down && ts->in_gesture_mode == 0)
-			fp_detect(ts);
-	}
-
 	if (finger_num == 0/* && last_status && (check_key <= 1)*/) {
 		if (3 == (++prlog_count % 6))
 			TPD_ERR("all finger up\n");
@@ -1790,14 +1787,6 @@ void int_touch(void)
 		if (!ts->en_up_down)
 			tp_baseline_get(ts, false);
 	}
-
-#ifdef SUPPORT_GESTURE
-	if (ts->in_gesture_mode == 1 && ts->is_suspended == 1) {
-		mutex_lock(&ts->mutex);
-		gesture_judge(ts);
-		mutex_unlock(&ts->mutex);
-	}
-#endif
 
 INT_TOUCH_END:
 	mutex_unlock(&ts->mutexreport);
@@ -1941,7 +1930,22 @@ static void synaptics_ts_work_func(struct work_struct *work)
 
 	if( inte & 0x04 ) {
 
+	if (ts->project_version == 0x03) {
+		if (ts->en_up_down && ts->in_gesture_mode == 0)
+			fp_detect(ts);
+	}
+
+	if (ts->is_suspended == 1) {
+	#ifdef SUPPORT_GESTURE
+		if (ts->in_gesture_mode == 1) {
+			mutex_lock(&ts->mutex);
+			gesture_judge(ts);
+			mutex_unlock(&ts->mutex);
+		}
+	#endif
+	} else {
 		int_touch();
+	}
 	}
 	if( inte & 0x10 ){
 		int_key_report_s3508(ts);
@@ -1969,8 +1973,10 @@ static enum hrtimer_restart synaptics_ts_timer_func(struct hrtimer *timer)
 static irqreturn_t synaptics_irq_thread_fn(int irq, void *dev_id)
 {
 	struct synaptics_ts_data *ts = (struct synaptics_ts_data *)dev_id;
-    touch_disable(ts);
+	touch_disable(ts);
+	__pm_stay_awake(&ts->source);
 	synaptics_ts_work_func(&ts->report_work);
+	__pm_relax(&ts->source);
 	return IRQ_HANDLED;
 }
 #endif
@@ -5914,6 +5920,7 @@ static int synaptics_ts_probe(struct i2c_client *client, const struct i2c_device
 		goto exit_createworkqueue_failed;
 	}
 	INIT_DELAYED_WORK(&ts->base_work,tp_baseline_get_work);
+	wakeup_source_init(&ts->source, "tp_syna");
 
 	ret = synaptics_init_panel(ts); /* will also switch back to page 0x04 */
 	if (ret < 0) {
@@ -6167,7 +6174,8 @@ static int synaptics_ts_suspend(struct device *dev)
 			mutex_unlock(&ts->mutex);
 			TPD_ERR("enter gesture mode\n");
 		}
-		set_doze_time(2);
+		//set_doze_time(2);	/*change dozeinterval by firmware*/
+		//just for fajita
 		if (ts->project_version == 0x03) {
 			mutex_lock(&ts->mutex);
 			tp_single_tap_en(ts, true);
