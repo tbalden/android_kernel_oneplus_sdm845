@@ -51,12 +51,13 @@ MODULE_LICENSE("GPL");
 #define FPF_KEY_HOME 0
 #define FPF_KEY_APPSWITCH 1
 #define FPF_KEY_NOTIFICATION 2
+#define FPF_KEY_RIGHTALT 3 // used only to work around ROM level filtering, like on Op6 gestures related HOME/APPSWITCH filtering
+#define FPF_KEY_SCREEN_OFF 4
 
 extern void set_vibrate(int value);
 extern void set_vibrate_boosted(int value);
 
 static int fpf_switch = FPF_SWITCH_STOCK;
-static int fpf_key = 0;
 static struct input_dev * fpf_pwrdev;
 static DEFINE_MUTEX(pwrkeyworklock);
 static DEFINE_MUTEX(fpfuncworklock);
@@ -88,8 +89,9 @@ static int get_fpf_switch(void) {
 	return uci_get_user_property_int_mm("fingerprint_mode", fpf_switch, 0, 3);
 }
 static int get_fpf_key(void) {
-	int fp_key = uci_get_user_property_int_mm("fingerprint_key", fpf_key, 0, 2);
-	return fp_key==2?KEY_KPDOT:(fp_key==1?KEY_APPSELECT:KEY_HOME);
+	int fp_key = uci_get_user_property_int_mm("fingerprint_key", 0, 0, 4);
+	if (fp_key==FPF_KEY_SCREEN_OFF) return fp_key;
+	return fp_key==FPF_KEY_RIGHTALT?KEY_RIGHTALT:(fp_key==FPF_KEY_NOTIFICATION?KEY_KPDOT:(fp_key==FPF_KEY_APPSWITCH?KEY_APPSELECT:KEY_HOME));
 }
 static int get_vib_strength(void) {
 	return uci_get_user_property_int_mm("fp_vib_strength", vib_strength, 0, 90);
@@ -838,17 +840,24 @@ static void fpf_home_button_func(struct work_struct * fpf_presspwr_work) {
 		job_done_in_home_button_func_work = 1;
 		pr_info("fpf %s home 1 \n",__func__);
 		if (get_fpf_key()!=KEY_KPDOT) {
-			input_event(fpf_pwrdev, EV_KEY, get_fpf_key(), 1);
-			input_event(fpf_pwrdev, EV_SYN, 0, 0);
-			msleep(1);
-			if (do_home_button_off_too_in_work_func) {
-				pr_info("fpf %s home 0 \n",__func__);
-				input_event(fpf_pwrdev, EV_KEY, get_fpf_key(), 0);
+			if (get_fpf_key()==FPF_KEY_SCREEN_OFF) {
+				if (do_home_button_off_too_in_work_func) {
+					fpf_pwrtrigger(0,__func__);
+					do_home_button_off_too_in_work_func = 0;
+				}
+			} else {
+				input_event(fpf_pwrdev, EV_KEY, get_fpf_key(), 1);
 				input_event(fpf_pwrdev, EV_SYN, 0, 0);
-				do_home_button_off_too_in_work_func = 0;
 				msleep(1);
-	//			fpf_vib();
+				if (do_home_button_off_too_in_work_func) {
+					pr_info("fpf %s home 0 \n",__func__);
+					input_event(fpf_pwrdev, EV_KEY, get_fpf_key(), 0);
+					input_event(fpf_pwrdev, EV_SYN, 0, 0);
+					do_home_button_off_too_in_work_func = 0;
+					msleep(1);
+			//		fpf_vib();
 			}
+		}
 		} else {
 			if (do_home_button_off_too_in_work_func) {
 				write_uci_out("fp_touch");
@@ -978,11 +987,13 @@ static enum alarmtimer_restart triple_tap_rtc_callback(struct alarm *al, ktime_t
 	triple_tap_wait = false;
 // home button simulation
 	if (get_fpf_key()!=KEY_KPDOT) {
-	input_report_key(fpf_pwrdev, get_fpf_key(), 1);
-	input_sync(fpf_pwrdev);
-	input_report_key(fpf_pwrdev, get_fpf_key(), 0);
-	input_sync(fpf_pwrdev);
-	} else write_uci_out("fp_touch");
+		input_report_key(fpf_pwrdev, get_fpf_key(), 1);
+		input_sync(fpf_pwrdev);
+		input_report_key(fpf_pwrdev, get_fpf_key(), 0);
+		input_sync(fpf_pwrdev);
+	} else {
+		write_uci_out("fp_touch");
+	}
 	return ALARMTIMER_NORESTART;
 }
 
@@ -1107,7 +1118,7 @@ static bool fpf_input_filter(struct input_handle *handle,
 						if (last_short_tap_diff> 60 * JIFFY_MUL) {
 							return false;
 						} else {
-							if (last_short_tap_diff > (DT_WAIT_PERIOD_BASE_VALUE + 9 + get_doubletap_wait_period()*2) * JIFFY_MUL) { // long doubletap
+							if (get_fpf_key()==FPF_KEY_SCREEN_OFF || (last_short_tap_diff > (DT_WAIT_PERIOD_BASE_VALUE + 9 + get_doubletap_wait_period()*2) * JIFFY_MUL)) { // long doubletap
 								fpf_pwrtrigger(0,__func__);
 							} else { // short doubletap
 								if (get_fpf_key()!=KEY_KPDOT) {
@@ -1151,11 +1162,16 @@ static bool fpf_input_filter(struct input_handle *handle,
 				fingerprint_pressed = 0;
 				// if job was all finished inside the work func, we need to call the HOME = 0 release event here, as we couldn't signal to the work to do it on it's own
 				if (job_done_in_home_button_func_work) {
+						if (get_fpf_key()==FPF_KEY_SCREEN_OFF) {
+							fpf_pwrtrigger(0,__func__);
+						} else
 						if (get_fpf_key()!=KEY_KPDOT) {
-						pr_info("fpf %s do key_home 0 sync as job was done, but without the possible signalling for HOME 0\n",__func__);
-						input_report_key(fpf_pwrdev, get_fpf_key(), 0);
-						input_sync(fpf_pwrdev); 
-						} else write_uci_out("fp_touch");
+							pr_info("fpf %s do key_home 0 sync as job was done, but without the possible signalling for HOME 0\n",__func__);
+							input_report_key(fpf_pwrdev, get_fpf_key(), 0);
+							input_sync(fpf_pwrdev); 
+						} else {
+							write_uci_out("fp_touch");
+						}
 				} else {
 				// job is not yet finished in home button func work, let's signal it, to do the home button = 0 sync as well
 					if (screen_on) {
@@ -4057,6 +4073,7 @@ static int __init fpf_init(void)
 	input_set_capability(fpf_pwrdev, EV_KEY, KEY_POWER);
 	input_set_capability(fpf_pwrdev, EV_KEY, KEY_HOME);
 	input_set_capability(fpf_pwrdev, EV_KEY, KEY_APPSELECT);
+	input_set_capability(fpf_pwrdev, EV_KEY, KEY_RIGHTALT);
 	
 	set_bit(EV_KEY, fpf_pwrdev->evbit);
 	set_bit(KEY_HOME, fpf_pwrdev->keybit);
