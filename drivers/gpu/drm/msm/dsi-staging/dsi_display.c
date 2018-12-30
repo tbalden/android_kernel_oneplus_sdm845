@@ -433,6 +433,9 @@ static void uci_user_listener(void) {
 	bool change = false;
 	int on = backlight_dimmer_uci?1:0;
 	int backlight_min_curr = backlight_min;
+	if (!ntf_is_hbm_valid()) {
+		return;
+	}
 	uci_user_backlight_dimmer_setting = true;
 	backlight_min = uci_get_user_property_int_mm("backlight_min", backlight_min, 1, 2047);
 	on = uci_get_user_property_int_mm("backlight_dimmer", on, 0, 1);

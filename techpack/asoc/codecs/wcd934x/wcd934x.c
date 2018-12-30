@@ -170,6 +170,11 @@ enum {
 #ifdef CONFIG_SOUND_CONTROL
 static bool headphone_jack = true;
 
+bool ntf_is_hbm_valid(void) {
+	return headphone_jack;
+}
+EXPORT_SYMBOL(ntf_is_hbm_valid);
+
 static struct snd_soc_codec *sound_control_codec_ptr;
 static int custom_hp_left = 0;
 static int custom_hp_right = 0;

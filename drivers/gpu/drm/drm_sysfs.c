@@ -38,6 +38,7 @@
 
 #ifdef CONFIG_UCI
 #include <linux/uci/uci.h>
+#include <linux/notification/notification.h>
 #endif
 
 #define to_drm_minor(d) dev_get_drvdata(d)
@@ -454,6 +455,7 @@ end:
 // registered sys uci listener
 static void uci_sys_listener(void) {
 	int i = 0;
+	if (!ntf_is_hbm_valid()) return;
         lux_level = uci_get_sys_property_int_mm("lux_level", lux_level, 0, 200000);
 	if (!hbm_switch) {
 		if (current_hbm_mode != 0) {
