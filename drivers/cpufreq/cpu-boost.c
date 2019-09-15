@@ -255,11 +255,12 @@ static void do_input_boost(struct work_struct *work)
 		sched_boost_active = false;
 	}
 
+#ifdef CONFIG_DYNAMIC_STUNE_BOOST
 	if (stune_boost_active) {
 		reset_stune_boost("top-app", boost_slot);
 		stune_boost_active = false;
 	}
-
+#endif
 	/* Set the input_boost_min for all CPUs in the system */
 	pr_debug("Setting input boost min for all CPUs\n");
 	for_each_possible_cpu(i) {
@@ -294,6 +295,7 @@ static void do_input_boost(struct work_struct *work)
 #endif
 #endif /* CONFIG_DYNAMIC_STUNE_BOOST */
 
+#ifdef CONFIG_DYNAMIC_STUNE_BOOST
 #ifdef CONFIG_UCI
 	queue_delayed_work(cpu_boost_wq, &input_boost_rem,
 					msecs_to_jiffies(get_input_boost_ms()));
@@ -301,6 +303,11 @@ static void do_input_boost(struct work_struct *work)
 	queue_delayed_work(cpu_boost_wq, &input_boost_rem,
 					msecs_to_jiffies(input_boost_ms));
 #endif
+#else
+	queue_delayed_work(cpu_boost_wq, &input_boost_rem,
+					msecs_to_jiffies(input_boost_ms));
+#endif
+
 }
 
 static void cpuboost_input_event(struct input_handle *handle,
