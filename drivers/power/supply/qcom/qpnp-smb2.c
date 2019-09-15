@@ -261,6 +261,12 @@ static int smb2_parse_dt(struct smb2 *chip)
 			chg->ibatmax[BATT_TEMP_COOL], rc, 1);
 	OF_PROP_READ(node, "ibatmax-little-cool-ma",
 			chg->ibatmax[BATT_TEMP_LITTLE_COOL], rc, 1);
+	OF_PROP_READ(node, "ibatmax-little-cool-low_ma",
+			chg->temp_littel_cool_low_current, rc, 1);
+	if (rc < 0)
+		chg->temp_littel_cool_low_current = 450;
+	pr_info("temp_littel_cool_low_current:%d\n",
+				chg->temp_littel_cool_low_current);
 	OF_PROP_READ(node, "ibatmax-pre-normal-ma",
 			chg->ibatmax[BATT_TEMP_PRE_NORMAL], rc, 1);
 	OF_PROP_READ(node, "ibatmax-normal-ma",

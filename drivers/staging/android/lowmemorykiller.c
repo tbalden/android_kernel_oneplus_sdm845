@@ -63,6 +63,12 @@
 #define CREATE_TRACE_POINTS
 #include "trace/lowmemorykiller.h"
 
+#ifdef CONFIG_MEMPLUS
+extern long ion_total_size(void);
+extern long kgsl_total_size(void);
+extern long get_uid_pss(uid_t uid, bool system_pss);
+#endif
+int vm_memory_plus_debug __read_mostly = 0;
 /* to enable lowmemorykiller */
 static int enable_lmk = 1;
 module_param_named(enable_lmk, enable_lmk, int, 0644);
@@ -194,8 +200,12 @@ static int lmk_vmpressure_notifier(struct notifier_block *nb,
 		other_file = global_node_page_state(NR_FILE_PAGES) -
 			global_node_page_state(NR_SHMEM) -
 			total_swapcache_pages();
+#ifdef CONFIG_DEFRAG_HELPER
+		other_free = global_page_state(NR_FREE_PAGES) -
+			global_page_state(NR_FREE_DEFRAG_POOL);
+#else
 		other_free = global_page_state(NR_FREE_PAGES);
-
+#endif
 		atomic_set(&shift_adj, 1);
 		trace_almk_vmpressure(pressure, other_free, other_file);
 	} else if (pressure >= 90) {
@@ -207,8 +217,12 @@ static int lmk_vmpressure_notifier(struct notifier_block *nb,
 		other_file = global_node_page_state(NR_FILE_PAGES) -
 			global_node_page_state(NR_SHMEM) -
 			total_swapcache_pages();
-
+#ifdef CONFIG_DEFRAG_HELPER
+		other_free = global_page_state(NR_FREE_PAGES) -
+			global_page_state(NR_FREE_DEFRAG_POOL);
+#else
 		other_free = global_page_state(NR_FREE_PAGES);
+#endif
 
 		if ((other_free < lowmem_minfree[array_size - 1]) &&
 		    (other_file < vmpressure_file_min)) {
@@ -905,6 +919,10 @@ static unsigned long lowmem_batch_kill(
 			long cache_size = other_file * (long)(PAGE_SIZE / 1024);
 			long cache_limit = minfree * (long)(PAGE_SIZE / 1024);
 			long free = other_free * (long)(PAGE_SIZE / 1024);
+#ifdef CONFIG_MEMPLUS
+			long ion_size = ion_total_size() / 1024;
+			long kgsl = kgsl_total_size() / 1024;
+#endif
 
 			if (test_task_lmk_waiting(selected) &&
 					(test_task_state(selected, TASK_UNINTERRUPTIBLE))) {
@@ -961,6 +979,22 @@ static unsigned long lowmem_batch_kill(
 						(long)(PAGE_SIZE / 1024),
 					sc->gfp_mask);
 
+#ifdef CONFIG_MEMPLUS
+			if (vm_memory_plus_debug && current_is_kswapd())
+				lowmem_print(1, "ion %ldkB\n"
+						"kgsl %ldkB\n"
+						"KernelStack %ldkB\n"
+						"PageTable %ldkB\n"
+						"slab %ldkB\n"
+						"system app %ldkB\n",
+						ion_size,
+						kgsl,
+						global_page_state(NR_KERNEL_STACK_KB),
+						(global_page_state(NR_PAGETABLE) << (PAGE_SHIFT - 10)),
+						((global_page_state(NR_SLAB_RECLAIMABLE) +
+							global_page_state(NR_SLAB_UNRECLAIMABLE))<<(PAGE_SHIFT - 10)),
+						get_uid_pss(10000, true));
+#endif
 			if (lowmem_debug_level >= 2 && selected_oom_score_adj == 0) {
 				show_mem(SHOW_MEM_FILTER_NODES);
 				show_mem_call_notifiers();
@@ -1012,16 +1046,20 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
 
 	if (!mutex_trylock(&scan_mutex))
 		return 0;
-
+#ifdef CONFIG_DEFRAG_HELPER
+	other_free = global_page_state(NR_FREE_PAGES) -
+			global_page_state(NR_FREE_DEFRAG_POOL) -
+						totalreserve_pages;
+#else
 	other_free = global_page_state(NR_FREE_PAGES) - totalreserve_pages;
-
+#endif
 	if (global_node_page_state(NR_SHMEM) + total_swapcache_pages() +
 			global_node_page_state(NR_UNEVICTABLE) <
 			global_node_page_state(NR_FILE_PAGES))
 		other_file = global_node_page_state(NR_FILE_PAGES) -
-					global_node_page_state(NR_SHMEM) -
-					global_node_page_state(NR_UNEVICTABLE) -
-					total_swapcache_pages();
+				global_node_page_state(NR_SHMEM) -
+				global_node_page_state(NR_UNEVICTABLE) -
+						total_swapcache_pages();
 	else
 		other_file = 0;
 

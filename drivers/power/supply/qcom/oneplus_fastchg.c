@@ -1134,10 +1134,7 @@ static long  dash_dev_ioctl(struct file *filp, unsigned int cmd,
 			dash_write(di, ALLOW_DATA);
 			break;
 		case DASH_NOTIFY_UPDATE_ADAPTER_INFO:
-			if (arg == DASH_NOTIFY_UPDATE_ADAPTER_INFO + 1)
-				di->dash_enhance = 1;
-			else if (arg == DASH_NOTIFY_UPDATE_ADAPTER_INFO + 2)
-				di->dash_enhance = 0;
+				di->dash_enhance = arg;
 			break;
 
 		case DASH_NOTIFY_BAD_CONNECTED:

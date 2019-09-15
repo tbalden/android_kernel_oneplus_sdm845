@@ -73,11 +73,33 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
 	show_val_kb(m, "Cached:         ", cached);
 	show_val_kb(m, "SwapCached:     ", total_swapcache_pages());
 	show_val_kb(m, "Active:         ", pages[LRU_ACTIVE_ANON] +
+#ifndef CONFIG_MEMPLUS
 					   pages[LRU_ACTIVE_FILE]);
+#else
+					   pages[LRU_ACTIVE_FILE] +
+					   pages[LRU_ACTIVE_ANON_SWPCACHE]);
+#endif
 	show_val_kb(m, "Inactive:       ", pages[LRU_INACTIVE_ANON] +
+#ifndef CONFIG_MEMPLUS
 					   pages[LRU_INACTIVE_FILE]);
-	show_val_kb(m, "Active(anon):   ", pages[LRU_ACTIVE_ANON]);
-	show_val_kb(m, "Inactive(anon): ", pages[LRU_INACTIVE_ANON]);
+#else
+					   pages[LRU_INACTIVE_FILE] +
+					   pages[LRU_INACTIVE_ANON_SWPCACHE]);
+#endif
+	show_val_kb(m, "Active(anon):   ",
+#ifndef CONFIG_MEMPLUS
+					pages[LRU_ACTIVE_ANON]);
+#else
+					pages[LRU_ACTIVE_ANON] +
+					pages[LRU_ACTIVE_ANON_SWPCACHE]);
+#endif
+	show_val_kb(m, "Inactive(anon): ",
+#ifndef CONFIG_MEMPLUS
+					pages[LRU_INACTIVE_ANON]);
+#else
+					pages[LRU_INACTIVE_ANON] +
+					pages[LRU_INACTIVE_ANON_SWPCACHE]);
+#endif
 	show_val_kb(m, "Active(file):   ", pages[LRU_ACTIVE_FILE]);
 	show_val_kb(m, "Inactive(file): ", pages[LRU_INACTIVE_FILE]);
 	show_val_kb(m, "Unevictable:    ", pages[LRU_UNEVICTABLE]);
@@ -165,6 +187,12 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
 	for (iter = 0; iter < 3; iter++)
 		show_val_kb(m, "priority:       ", priority_nr[iter]);
 	show_val_kb(m, "alloc_slow_nr:  ", alloc_slow_nr);
+#ifdef CONFIG_DEFRAG_HELPER
+	show_val_kb(m, "DefragPoolFree: ",
+				global_page_state(NR_FREE_DEFRAG_POOL));
+	show_val_kb(m, "RealMemFree:    ", i.freeram -
+				global_page_state(NR_FREE_DEFRAG_POOL));
+#endif
 	hugetlb_report_meminfo(m);
 
 	arch_report_meminfo(m);
