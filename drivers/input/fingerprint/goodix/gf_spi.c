@@ -56,6 +56,8 @@
 
 #include "../fingerprint_detect/fingerprint_detect.h"
 
+#undef CONFIG_UCI_NOTIFICATIONS
+
 #ifdef CONFIG_UCI_NOTIFICATIONS
 #include <linux/notification/notification.h>
 #include <linux/uci/uci.h>
