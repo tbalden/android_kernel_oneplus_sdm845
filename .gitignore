@@ -119,6 +119,6 @@ all.config
 # fetched Android config fragments
 kernel/configs/android-*.cfg
 
-drivers/oneplus
+# drivers/oneplus
 out
 _buildmodules_op6
