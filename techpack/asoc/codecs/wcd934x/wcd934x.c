@@ -1,4 +1,4 @@
-/* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -10130,14 +10130,6 @@ done:
 	mutex_unlock(&tavil->codec_mutex);
 	return ret;
 }
-/* tony.liu@Multimedia.Audio,2017.12.21 add headset plug type detect */
-static const unsigned int plug_type_extcon_tab[] = {
-	EXTCON_PLUG_TYPE_NONE,             //19
-	EXTCON_PLUG_TYPE_HEADSET,          //20
-	EXTCON_PLUG_TYPE_HEADPHONE,        //21
-	EXTCON_PLUG_TYPE_GND_MIC_SWAP,     //22
-	EXTCON_NONE,                       //0
-};
 
 #ifdef CONFIG_SOUND_CONTROL
 static int speaker_gain_val = 6;

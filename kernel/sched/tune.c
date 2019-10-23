@@ -1105,7 +1105,6 @@ out:
 static void
 schedtune_boostgroup_release(struct schedtune *st)
 {
-<<<<<<< HEAD
 	struct boost_groups *bg;
 	int cpu;
 
@@ -1115,14 +1114,10 @@ schedtune_boostgroup_release(struct schedtune *st)
 		bg->group[st->idx].valid = false;
 		bg->group[st->idx].boost = 0;
 	}
-=======
 #ifdef CONFIG_DYNAMIC_STUNE_BOOST
 	/* Free dynamic boost slots */
 	boost_slots_release(st);
 #endif // CONFIG_DYNAMIC_STUNE_BOOST
-	/* Reset this boost group */
-	schedtune_boostgroup_update(st->idx, 0);
->>>>>>> c3322bb... [squash] sched/tune: slot based boost level scale down
 
 	/* Keep track of allocated boost groups */
 	allocated_group[st->idx] = NULL;
