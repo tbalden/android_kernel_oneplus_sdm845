@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -320,6 +320,15 @@ static int32_t sp_make_afe_callback(uint32_t *payload, uint32_t payload_size)
 	return 0;
 }
 
+static bool afe_token_is_valid(uint32_t token)
+{
+	if (token >= AFE_MAX_PORTS) {
+		pr_err("%s: token %d is invalid.\n", __func__, token);
+		return false;
+	}
+	return true;
+}
+
 static int32_t afe_callback(struct apr_client_data *data, void *priv)
 {
 	if (!data) {
@@ -382,25 +391,39 @@ static int32_t afe_callback(struct apr_client_data *data, void *priv)
 			return -EINVAL;
 		}
 
+		if (rtac_make_afe_callback(data->payload,
+					   data->payload_size))
+			return 0;
+
+		if (data->payload_size < 3 * sizeof(uint32_t)) {
+			pr_err("%s: Error: size %d is less than expected\n",
+				__func__, data->payload_size);
+			return -EINVAL;
+		}
+
 		if (payload[2] == AFE_PARAM_ID_DEV_TIMING_STATS) {
 			av_dev_drift_afe_cb_handler(data->payload,
 						    data->payload_size);
 		} else {
-			if (rtac_make_afe_callback(data->payload,
-						   data->payload_size))
-				return 0;
-
 			if (sp_make_afe_callback(data->payload,
 						 data->payload_size))
 				return -EINVAL;
 		}
-		wake_up(&this_afe.wait[data->token]);
+		if (afe_token_is_valid(data->token))
+			wake_up(&this_afe.wait[data->token]);
+		else
+			return -EINVAL;
 	} else if (data->payload_size) {
 		uint32_t *payload;
 		uint16_t port_id = 0;
 
 		payload = data->payload;
 		if (data->opcode == APR_BASIC_RSP_RESULT) {
+			if (data->payload_size < (2 * sizeof(uint32_t))) {
+				pr_err("%s: Error: size %d is less than expected\n",
+					__func__, data->payload_size);
+				return -EINVAL;
+			}
 			pr_debug("%s:opcode = 0x%x cmd = 0x%x status = 0x%x token=%d\n",
 				__func__, data->opcode,
 				payload[0], payload[1], data->token);
@@ -425,7 +448,10 @@ static int32_t afe_callback(struct apr_client_data *data, void *priv)
 			case AFE_PORTS_CMD_DTMF_CTL:
 			case AFE_SVC_CMD_SET_PARAM:
 				atomic_set(&this_afe.state, 0);
-				wake_up(&this_afe.wait[data->token]);
+				if (afe_token_is_valid(data->token))
+					wake_up(&this_afe.wait[data->token]);
+				else
+					return -EINVAL;
 				break;
 			case AFE_SERVICE_CMD_REGISTER_RT_PORT_DRIVER:
 				break;
@@ -437,7 +463,10 @@ static int32_t afe_callback(struct apr_client_data *data, void *priv)
 				break;
 			case AFE_CMD_ADD_TOPOLOGIES:
 				atomic_set(&this_afe.state, 0);
-				wake_up(&this_afe.wait[data->token]);
+				if (afe_token_is_valid(data->token))
+					wake_up(&this_afe.wait[data->token]);
+				else
+					return -EINVAL;
 				pr_debug("%s: AFE_CMD_ADD_TOPOLOGIES cmd 0x%x\n",
 						__func__, payload[1]);
 				break;
@@ -459,7 +488,10 @@ static int32_t afe_callback(struct apr_client_data *data, void *priv)
 			else
 				this_afe.mmap_handle = payload[0];
 			atomic_set(&this_afe.state, 0);
-			wake_up(&this_afe.wait[data->token]);
+			if (afe_token_is_valid(data->token))
+				wake_up(&this_afe.wait[data->token]);
+			else
+				return -EINVAL;
 		} else if (data->opcode == AFE_EVENT_RT_PROXY_PORT_STATUS) {
 			port_id = (uint16_t)(0x0000FFFF & payload[0]);
 		}
@@ -659,10 +691,17 @@ int afe_get_port_type(u16 port_id)
 		break;
 
 	default:
-		WARN_ON(1);
+//MM.Audio, 2019/07/13, add for screen record headset mic path
+/*		WARN_ON(1);
 		pr_err("%s: Invalid port id = 0x%x\n",
 			__func__, port_id);
-		ret = -EINVAL;
+		ret = -EINVAL;*/
+		if (port_id & 0x1)
+			ret = MSM_AFE_PORT_TYPE_TX;
+		else
+			ret = MSM_AFE_PORT_TYPE_RX;
+		break;
+//end
 	}
 
 	return ret;
@@ -1860,8 +1899,8 @@ void afe_send_cal(u16 port_id)
 		if (ret < 0)
 			send_afe_cal_type(AFE_LSM_TX_CAL, port_id);
 	} else if (afe_get_port_type(port_id) == MSM_AFE_PORT_TYPE_RX) {
-		afe_send_cal_spkr_prot_rx(port_id);
 		send_afe_cal_type(AFE_COMMON_RX_CAL, port_id);
+		afe_send_cal_spkr_prot_rx(port_id);
 	}
 }
 
@@ -3250,6 +3289,15 @@ static int q6afe_send_enc_config(u16 port_id,
 		config.port.enc_blk_param.enc_cfg_blk_size =
 				sizeof(config.port.enc_blk_param.enc_blk_config)
 					- sizeof(struct afe_abr_enc_cfg_t);
+	} else if (format == ASM_MEDIA_FMT_AAC_V2) {
+		config.param.payload_size = payload_size
+				+ sizeof(config.port.enc_blk_param)
+				- sizeof(struct asm_aac_frame_size_control_t);
+		config.pdata.param_size = sizeof(config.port.enc_blk_param)
+				- sizeof(struct asm_aac_frame_size_control_t);
+		config.port.enc_blk_param.enc_cfg_blk_size =
+				sizeof(config.port.enc_blk_param.enc_blk_config)
+				- sizeof(struct asm_aac_frame_size_control_t);
 	} else {
 		config.param.payload_size = payload_size
 					+ sizeof(config.port.enc_blk_param);
@@ -3266,6 +3314,32 @@ static int q6afe_send_enc_config(u16 port_id,
 		pr_err("%s: AFE_ENCODER_PARAM_ID_ENC_CFG_BLK for port 0x%x failed %d\n",
 			__func__, port_id, ret);
 		goto exit;
+	}
+
+	if (format == ASM_MEDIA_FMT_AAC_V2) {
+		uint32_t frame_size_ctl_value = config.port.enc_blk_param.
+			enc_blk_config.aac_config.frame_ctl.ctl_value;
+		if (frame_size_ctl_value > 0) {
+			config.param.payload_size = payload_size
+					+ sizeof(config.port.frame_ctl_param);
+			config.pdata.param_id =
+				AFE_PARAM_ID_AAC_FRM_SIZE_CONTROL;
+			config.pdata.param_size =
+				sizeof(config.port.frame_ctl_param);
+			config.port.frame_ctl_param.ctl_type =
+				config.port.enc_blk_param.enc_blk_config.
+					aac_config.frame_ctl.ctl_type;
+			config.port.frame_ctl_param.ctl_value =
+						frame_size_ctl_value;
+			pr_debug("%s: send AFE_PARAM_ID_AAC_FRM_SIZE_CONTROL\n",
+				  __func__);
+			ret = afe_apr_send_pkt(&config, &this_afe.wait[index]);
+			if (ret) {
+				pr_err("%s: AAC_FRM_SIZE_CONTROL failed %d\n",
+					__func__, ret);
+				goto exit;
+			}
+		}
 	}
 
 	if (format == ASM_MEDIA_FMT_APTX) {
@@ -3315,7 +3389,8 @@ static int q6afe_send_enc_config(u16 port_id,
 		goto exit;
 	}
 
-	if (format == ASM_MEDIA_FMT_LDAC) {
+	if (format == ASM_MEDIA_FMT_LDAC &&
+	    cfg->ldac_config.abr_config.is_abr_enabled) {
 		config.param.payload_size =
 			payload_size + sizeof(config.port.map_param);
 		pr_debug("%s:sending AFE_ENCODER_PARAM_ID_BIT_RATE_LEVEL_MAP to DSP payload = %d\n",
@@ -3433,7 +3508,7 @@ static int __afe_port_start(u16 port_id, union afe_port_config *afe_config,
 		port_id = VIRTUAL_ID_TO_PORTID(port_id);
 	}
 
-//buqing.wang@mutimedia ,open to debug usb audio,20180710
+	//mutimedia ,open to debug usb audio,20180710
 	pr_info("%s: port id: 0x%x\n", __func__, port_id);
 
 	index = q6audio_get_port_index(port_id);
@@ -4042,6 +4117,10 @@ int afe_get_port_index(u16 port_id)
 		return IDX_AFE_PORT_ID_INT6_MI2S_RX;
 	case AFE_PORT_ID_INT6_MI2S_TX:
 		return IDX_AFE_PORT_ID_INT6_MI2S_TX;
+//MM.Audio, 2019/07/13, add for screen record headset mic path
+	case AFE_LOOPBACK_TX:
+ 		return IDX_AFE_LOOPBACK_TX;
+//end add
 	default:
 		pr_err("%s: port 0x%x\n", __func__, port_id);
 		return -EINVAL;

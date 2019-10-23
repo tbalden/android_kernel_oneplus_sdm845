@@ -412,6 +412,9 @@ static struct notifier_block typec_cc_notifier = {
 	.notifier_call = cc_audio_adapter_detect_callback,
 };
 
+/* liuhaituo@MM.Audio 2018/8/8 Solve not detected the headset after restarting the phone
+ *  after plugging in the headset
+ */
 static void call_wcd_detect_headset(struct work_struct *work)
 {
 	if (audio_adapter_flag)
@@ -484,6 +487,8 @@ static int fsa4480_i2c_probe(struct i2c_client *i2c,
         pr_err("%s sysfs_create_file fsa4480_state_attr error.",__func__);
     }
 
+	/* liuhaituo@MM.Audio 2018/8/8 Solve not detected the headset after restarting the phone
+	 * after plugging in the headset*/
 	INIT_DELAYED_WORK(&fsa4480->call_wcd_dwork, call_wcd_detect_headset);
 	schedule_delayed_work(&fsa4480->call_wcd_dwork, msecs_to_jiffies(8000));
 	return 0;

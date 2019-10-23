@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -2273,7 +2273,7 @@ static int msm_dai_q6_afe_enc_cfg_get(struct snd_kcontrol *kcontrol,
 		case ENC_FMT_AAC_V2:
 			memcpy(ucontrol->value.bytes.data + format_size,
 				&dai_data->enc_config.data,
-				sizeof(struct asm_aac_enc_cfg_v2_t));
+				sizeof(struct asm_aac_enc_cfg_t));
 			break;
 		case ENC_FMT_APTX:
 			memcpy(ucontrol->value.bytes.data + format_size,
@@ -2331,7 +2331,7 @@ static int msm_dai_q6_afe_enc_cfg_put(struct snd_kcontrol *kcontrol,
 		case ENC_FMT_AAC_V2:
 			memcpy(&dai_data->enc_config.data,
 				ucontrol->value.bytes.data + format_size,
-				sizeof(struct asm_aac_enc_cfg_v2_t));
+				sizeof(struct asm_aac_enc_cfg_t));
 			break;
 		case ENC_FMT_APTX:
 			memcpy(&dai_data->enc_config.data,
@@ -2601,7 +2601,7 @@ static int msm_dai_q6_slim_rx_drift_get(struct snd_kcontrol *kcontrol,
 	struct msm_dai_q6_dai_data *dai_data = dev_get_drvdata(dai->dev);
 
 	if (!test_bit(STATUS_PORT_STARTED, dai_data->status_mask)) {
-		pr_err("%s: afe port not started. dai_data->status_mask = %ld\n",
+		pr_debug("%s: afe port not started. dai_data->status_mask = %ld\n",
 			__func__, *dai_data->status_mask);
 		goto done;
 	}
@@ -2857,7 +2857,31 @@ static struct snd_soc_dai_driver msm_dai_q6_afe_rx_dai[] = {
 		.remove = msm_dai_q6_dai_remove,
 	},
 };
-
+//MM.Audio, 2019/07/13, add for screen record headset mic path
+ static struct snd_soc_dai_driver msm_dai_q6_afe_lb_tx_dai[] = {
+ 	 {
+ 		 .capture = {
+ 			 .stream_name = "AFE Loopback Capture",
+ 			 .aif_name = "AFE_LOOPBACK_TX",
+ 			 .rates = SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_11025 |
+ 			  SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_22050 |
+ 			  SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 |
+ 			  SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_96000 |
+ 			  SNDRV_PCM_RATE_192000,
+ 			 .formats = (SNDRV_PCM_FMTBIT_S16_LE |
+ 			 SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S24_3LE |
+ 			 SNDRV_PCM_FMTBIT_S32_LE ),
+ 			 .channels_min = 1,
+ 			 .channels_max = 8,
+ 			 .rate_min =	 8000,
+ 			 .rate_max =	 192000,
+ 		 },
+ 		 .id = AFE_LOOPBACK_TX,
+ 		 .probe = msm_dai_q6_dai_probe,
+ 		 .remove = msm_dai_q6_dai_remove,
+ 	 },
+ };
+//end add
 static struct snd_soc_dai_driver msm_dai_q6_afe_tx_dai[] = {
 	{
 		.capture = {
@@ -3386,6 +3410,7 @@ static struct platform_driver msm_auxpcm_dev_driver = {
 		.name = "msm-auxpcm-dev",
 		.owner = THIS_MODULE,
 		.of_match_table = msm_auxpcm_dev_dt_match,
+		.suppress_bind_attrs = true,
 	},
 };
 
@@ -5018,6 +5043,14 @@ register_slim_capture:
 			pr_err("%s: Device not found stream name %s\n",
 				__func__, stream_name);
 		break;
+//MM.Audio, 2019/07/13, add for screen record headset mic path
+	case AFE_LOOPBACK_TX:
+        rc = snd_soc_register_component(&pdev->dev,
+						&msm_dai_q6_component,
+						&msm_dai_q6_afe_lb_tx_dai[0],
+						1);
+		break;
+//end add
 	case INT_BT_SCO_RX:
 		rc = snd_soc_register_component(&pdev->dev,
 			&msm_dai_q6_component, &msm_dai_q6_bt_sco_rx_dai, 1);
@@ -5163,6 +5196,7 @@ static struct platform_driver msm_dai_q6_dev = {
 		.name = "msm-dai-q6-dev",
 		.owner = THIS_MODULE,
 		.of_match_table = msm_dai_q6_dev_dt_match,
+		.suppress_bind_attrs = true,
 	},
 };
 
@@ -5199,6 +5233,7 @@ static struct platform_driver msm_dai_q6 = {
 		.name = "msm-dai-q6",
 		.owner = THIS_MODULE,
 		.of_match_table = msm_dai_q6_dt_match,
+		.suppress_bind_attrs = true,
 	},
 };
 
@@ -5234,6 +5269,7 @@ static struct platform_driver msm_dai_mi2s_q6 = {
 		.name = "msm-dai-mi2s",
 		.owner = THIS_MODULE,
 		.of_match_table = msm_dai_mi2s_dt_match,
+		.suppress_bind_attrs = true,
 	},
 };
 
@@ -5251,6 +5287,7 @@ static struct platform_driver msm_dai_q6_mi2s_driver = {
 		.name = "msm-dai-q6-mi2s",
 		.owner = THIS_MODULE,
 		.of_match_table = msm_dai_q6_mi2s_dev_dt_match,
+		.suppress_bind_attrs = true,
 	},
 };
 
@@ -5288,6 +5325,7 @@ static struct platform_driver msm_dai_q6_spdif_driver = {
 		.name = "msm-dai-q6-spdif",
 		.owner = THIS_MODULE,
 		.of_match_table = msm_dai_q6_spdif_dt_match,
+		.suppress_bind_attrs = true,
 	},
 };
 
@@ -5494,6 +5532,7 @@ static struct platform_driver msm_dai_tdm_q6 = {
 		.name = "msm-dai-tdm",
 		.owner = THIS_MODULE,
 		.of_match_table = msm_dai_tdm_dt_match,
+		.suppress_bind_attrs = true,
 	},
 };
 
@@ -6571,6 +6610,9 @@ static int msm_dai_q6_tdm_set_tdm_slot(struct snd_soc_dai *dai,
 
 	/* HW supports 1-32 slots configuration. Typical: 1, 2, 4, 8, 16, 32 */
 	switch (slots) {
+	case 1:
+		cap_mask = 0x01;
+		break;
 	case 2:
 		cap_mask = 0x03;
 		break;
@@ -6846,6 +6888,31 @@ static int msm_dai_q6_tdm_set_channel_map(struct snd_soc_dai *dai,
 	return rc;
 }
 
+static unsigned int tdm_param_set_slot_mask(u16 *slot_offset, int slot_width,
+						int slots_per_frame)
+{
+	unsigned int i = 0;
+	unsigned int slot_index = 0;
+	unsigned long slot_mask = 0;
+	unsigned int slot_width_bytes = slot_width / 8;
+
+	for (i = 0; i < AFE_PORT_MAX_AUDIO_CHAN_CNT; i++) {
+		if (slot_offset[i] != AFE_SLOT_MAPPING_OFFSET_INVALID) {
+			slot_index = slot_offset[i] / slot_width_bytes;
+			if (slot_index < slots_per_frame)
+				set_bit(slot_index, &slot_mask);
+			else {
+				pr_err("%s: invalid slot map setting\n",
+				       __func__);
+				return 0;
+			}
+		} else
+			break;
+	}
+
+	return slot_mask;
+}
+
 static int msm_dai_q6_tdm_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params,
 				struct snd_soc_dai *dai)
@@ -6934,7 +7001,9 @@ static int msm_dai_q6_tdm_hw_params(struct snd_pcm_substream *substream,
 	 */
 	tdm->nslots_per_frame = tdm_group->nslots_per_frame;
 	tdm->slot_width = tdm_group->slot_width;
-	tdm->slot_mask = tdm_group->slot_mask;
+	tdm->slot_mask = tdm_param_set_slot_mask(slot_mapping->offset,
+				tdm_group->slot_width,
+				tdm_group->nslots_per_frame);
 
 	pr_debug("%s: TDM:\n"
 		"num_channels=%d sample_rate=%d bit_width=%d\n"
@@ -9006,6 +9075,7 @@ static struct platform_driver msm_dai_q6_tdm_driver = {
 		.name = "msm-dai-q6-tdm",
 		.owner = THIS_MODULE,
 		.of_match_table = msm_dai_q6_tdm_dev_dt_match,
+		.suppress_bind_attrs = true,
 	},
 };
 

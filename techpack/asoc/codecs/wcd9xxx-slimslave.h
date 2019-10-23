@@ -18,6 +18,7 @@
 /*2018/06/14 @bsp add for support notify audio adapter switch*/
 #include <linux/notifier.h>
 
+
 /*
  *  client is expected to give port ids in the range of
  *  1-10 for pre Taiko Tx ports and 1-16 for Taiko
