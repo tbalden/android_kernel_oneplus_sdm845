@@ -56,6 +56,7 @@
 
 #include "../fingerprint_detect/fingerprint_detect.h"
 
+
 #define VER_MAJOR   1
 #define VER_MINOR   2
 #define PATCH_LEVEL 8
@@ -386,11 +387,19 @@ static void gf_kernel_key_input(struct gf_dev *gf_dev, struct gf_key *gf_key)
 		input_report_key(gf_dev->input, key_input, 0);
 		input_sync(gf_dev->input);
 	}
-
+#if 0
 	if (GF_KEY_HOME == gf_key->key) {
 		input_report_key(gf_dev->input, key_input, gf_key->value);
 		input_sync(gf_dev->input);
 	}
+#endif
+#if 1
+	if (GF_KEY_CAMERA == gf_key->key) {
+		pr_info("%s fpf - camera mapped to Home...\n",__func__);
+		input_report_key(gf_dev->input, GF_KEY_INPUT_HOME, gf_key->value);
+		input_sync(gf_dev->input);
+	}
+#endif
 }
 
 static long gf_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
