@@ -224,6 +224,12 @@ static int get_face_down_screen_off(void) {
 	return uci_get_user_property_int_mm("face_down_screen_off", face_down_screen_off, 0, 1);
 }
 
+// should vibrate when face down screen off gesture triggers..?
+static int face_down_screen_off_vib = 1;
+static int get_face_down_screen_off_vib(void) {
+	return uci_get_user_property_int_mm("face_down_screen_off_vib", face_down_screen_off_vib, 0, 1);
+}
+
 bool should_screen_off_face_down(int screen_timeout_sec, int face_down);
 static void fpf_pwrtrigger(int vibration, const char caller[]);
 
@@ -271,7 +277,7 @@ void fpf_uci_sys_listener(void) {
 		if (face_down && last_face_down!=face_down) {
 			if (screen_on && ntf_wake_by_user() && !ringing && !fpf_screen_waking_app) {
 				if (should_screen_off_face_down(screen_timeout_sec, face_down)) {
-					fpf_pwrtrigger(0,__func__);
+					fpf_pwrtrigger(!!get_face_down_screen_off_vib(),__func__);
 				}
 			}
 		}
