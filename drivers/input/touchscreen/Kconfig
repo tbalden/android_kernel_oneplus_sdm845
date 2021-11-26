@@ -11,6 +11,7 @@ menuconfig INPUT_TOUCHSCREEN
 
 if INPUT_TOUCHSCREEN
 
+
 config TOUCHSCREEN_PROPERTIES
 	def_tristate INPUT
 	depends on INPUT
@@ -1441,6 +1442,14 @@ config TOUCHSCREEN_EKTF3XXX_CHIPSET
 	  report 10 touches at a time.
 
 		  If unusre, say N.
+
+config TOUCHSCREEN_RAYDIUM_CHIPSET
+	bool "Raydium WT030 touchpanel CHIPSET"
+	depends on I2C
+	help
+	  Say Y here if you have a Raydium WT030 CHIPSET touchscreen.
+
+	  If unsure, say N.
 
 config TOUCHSCREEN_SYNAPTICS_S3320_I2C_RMI
 	tristate "Synaptics s3320 i2c touchscreen"

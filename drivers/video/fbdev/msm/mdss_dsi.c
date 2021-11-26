@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2019, 2021, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -35,6 +35,7 @@
 #include "mdss_debug.h"
 #include "mdss_dsi_phy.h"
 #include "mdss_dba_utils.h"
+#include "mdss_smmu.h"
 
 #define XO_CLK_RATE	19200000
 #define CMDLINE_DSI_CTL_NUM_STRING_LEN 2
@@ -978,7 +979,7 @@ static ssize_t mdss_dsi_cmd_write(struct file *file, const char __user *p,
 {
 	struct buf_data *pcmds = file->private_data;
 	ssize_t ret = 0;
-	int blen = 0;
+	unsigned int blen = 0;
 	char *string_buf;
 
 	mutex_lock(&pcmds->dbg_mutex);
@@ -990,6 +991,11 @@ static ssize_t mdss_dsi_cmd_write(struct file *file, const char __user *p,
 
 	/* Allocate memory for the received string */
 	blen = count + (pcmds->sblen);
+	if (blen > U32_MAX - 1) {
+		mutex_unlock(&pcmds->dbg_mutex);
+		return -EINVAL;
+	}
+
 	string_buf = krealloc(pcmds->string_buf, blen + 1, GFP_KERNEL);
 	if (!string_buf) {
 		pr_err("%s: Failed to allocate memory\n", __func__);
@@ -997,6 +1003,7 @@ static ssize_t mdss_dsi_cmd_write(struct file *file, const char __user *p,
 		return -ENOMEM;
 	}
 
+	pcmds->string_buf = string_buf;
 	/* Writing in batches is possible */
 	ret = simple_write_to_buffer(string_buf, blen, ppos, p, count);
 	if (ret < 0) {
@@ -1006,7 +1013,6 @@ static ssize_t mdss_dsi_cmd_write(struct file *file, const char __user *p,
 	}
 
 	string_buf[ret] = '\0';
-	pcmds->string_buf = string_buf;
 	pcmds->sblen = count;
 	mutex_unlock(&pcmds->dbg_mutex);
 	return ret;
@@ -1333,6 +1339,8 @@ static int mdss_dsi_off(struct mdss_panel_data *pdata, int power_state)
 	int ret = 0;
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
 	struct mdss_panel_info *panel_info = NULL;
+	struct platform_device *pdev;
+	struct dsi_buf *tp;
 
 	if (pdata == NULL) {
 		pr_err("%s: Invalid input data\n", __func__);
@@ -1343,6 +1351,16 @@ static int mdss_dsi_off(struct mdss_panel_data *pdata, int power_state)
 				panel_data);
 
 	panel_info = &ctrl_pdata->panel_data.panel_info;
+
+	pdev = mdss_res->pdev;
+	tp = &ctrl_pdata->tx_buf;
+	mdss_smmu_dma_free_coherent(&pdev->dev, SZ_4K, tp->start, tp->dmap,
+			ctrl_pdata->dma_addr, MDSS_IOMMU_DOMAIN_UNSECURE);
+	tp->end = NULL;
+	tp->size = 0;
+	ctrl_pdata->dma_addr = 0;
+	tp->start = NULL;
+	tp->dmap = 0;
 
 	pr_debug("%s+: ctrl=%pK ndx=%d power_state=%d\n",
 		__func__, ctrl_pdata, ctrl_pdata->ndx, power_state);
@@ -1512,6 +1530,8 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 	struct mipi_panel_info *mipi;
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
 	int cur_power_state;
+	struct platform_device *pdev;
+	struct dsi_buf *tp;
 
 	if (pdata == NULL) {
 		pr_err("%s: Invalid input data\n", __func__);
@@ -1520,6 +1540,20 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 
 	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
 				panel_data);
+
+	pdev = mdss_res->pdev;
+	tp = &ctrl_pdata->tx_buf;
+	if (!ctrl_pdata->mdss_util->iommu_attached())
+		pr_err("%s : iommu not attached\n", __func__);
+
+	ret = mdss_smmu_dma_alloc_coherent(&pdev->dev, SZ_4K, &tp->dmap,
+		&ctrl_pdata->dma_addr, (void *)&tp->start, GFP_KERNEL,
+			MDSS_IOMMU_DOMAIN_UNSECURE);
+	if (IS_ERR_VALUE((unsigned long)ret))
+		pr_err("%s : mdss_smmu_dma_alloc_coherent failed\n", __func__);
+
+	tp->end = tp->start + SZ_4K;
+	tp->size = SZ_4K;
 
 	if (ctrl_pdata->debugfs_info)
 		mdss_dsi_validate_debugfs_info(ctrl_pdata);
@@ -3519,6 +3553,10 @@ static int mdss_dsi_parse_dt_params(struct platform_device *pdev,
 	sdata->cmd_clk_ln_recovery_en =
 		of_property_read_bool(pdev->dev.of_node,
 		"qcom,dsi-clk-ln-recovery");
+
+	sdata->skip_clamp =
+		of_property_read_bool(pdev->dev.of_node,
+		"qcom,mdss-skip-clamp");
 
 	return 0;
 }

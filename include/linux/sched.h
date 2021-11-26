@@ -1722,7 +1722,7 @@ struct task_struct {
 	int compensate_need;
 	unsigned int inode_index_disabled;
 
-	//Display, add for fd leak debug
+//Display, add for fd leak debug
 	bool dump_fd_leak;
 
 #ifdef CONFIG_SMP
@@ -1981,8 +1981,8 @@ struct task_struct {
 	struct seccomp seccomp;
 
 /* Thread group tracking */
-   	u32 parent_exec_id;
-   	u32 self_exec_id;
+	u64 parent_exec_id;
+	u64 self_exec_id;
 /* Protection of (de-)allocation: mm, files, fs, tty, keyrings, mems_allowed,
  * mempolicy */
 	spinlock_t alloc_lock;
@@ -2251,6 +2251,16 @@ struct task_struct {
 	int hot_count;
 #endif
 
+#ifdef CONFIG_TPD
+	int tpd;
+	int dtpd;  /* dynamic tpd task */
+	int dtpdg; /* dynamic tpd task group */
+#endif
+
+#ifdef CONFIG_OPLUS_FEATURE_FUSE_FS_SHORTCIRCUIT
+	struct fuse_package *fpack;
+#endif /* CONFIG_OPLUS_FEATURE_FUSE_FS_SHORTCIRCUIT */
+
 /* CPU-specific state of this task */
 	struct thread_struct thread;
 /*
@@ -2260,6 +2270,14 @@ struct task_struct {
  * Do not put anything below here!
  */
 };
+
+#ifdef CONFIG_OPLUS_FEATURE_FUSE_FS_SHORTCIRCUIT
+struct fuse_package {
+	bool fuse_open_req;
+	struct file *filp;
+	char *iname;
+};
+#endif /* CONFIG_OPLUS_FEATURE_FUSE_FS_SHORTCIRCUIT */
 
 #ifdef CONFIG_ARCH_WANTS_DYNAMIC_TASK_STRUCT
 extern int arch_task_struct_size __read_mostly;
@@ -2323,7 +2341,7 @@ static inline bool in_vfork(struct task_struct *tsk)
 extern void task_numa_fault(int last_node, int node, int pages, int flags);
 extern pid_t task_numa_group_id(struct task_struct *p);
 extern void set_numabalancing_state(bool enabled);
-extern void task_numa_free(struct task_struct *p);
+extern void task_numa_free(struct task_struct *p, bool final);
 extern bool should_numa_migrate_memory(struct task_struct *p, struct page *page,
 					int src_nid, int dst_cpu);
 #else
@@ -2338,7 +2356,7 @@ static inline pid_t task_numa_group_id(struct task_struct *p)
 static inline void set_numabalancing_state(bool enabled)
 {
 }
-static inline void task_numa_free(struct task_struct *p)
+static inline void task_numa_free(struct task_struct *p, bool final)
 {
 }
 static inline bool should_numa_migrate_memory(struct task_struct *p,
@@ -3284,27 +3302,6 @@ static inline void mmdrop_async(struct mm_struct *mm)
 		INIT_WORK(&mm->async_put_work, mmdrop_async_fn);
 		schedule_work(&mm->async_put_work);
 	}
-}
-
-/*
- * This has to be called after a get_task_mm()/mmget_not_zero()
- * followed by taking the mmap_sem for writing before modifying the
- * vmas or anything the coredump pretends not to change from under it.
- *
- * NOTE: find_extend_vma() called from GUP context is the only place
- * that can modify the "mm" (notably the vm_start/end) under mmap_sem
- * for reading and outside the context of the process, so it is also
- * the only case that holds the mmap_sem for reading that must call
- * this function. Generally if the mmap_sem is hold for reading
- * there's no need of this check after get_task_mm()/mmget_not_zero().
- *
- * This function can be obsoleted and the check can be removed, after
- * the coredump code will hold the mmap_sem for writing before
- * invoking the ->core_dump methods.
- */
-static inline bool mmget_still_valid(struct mm_struct *mm)
-{
-	return likely(!mm->core_state);
 }
 
 static inline bool mmget_not_zero(struct mm_struct *mm)

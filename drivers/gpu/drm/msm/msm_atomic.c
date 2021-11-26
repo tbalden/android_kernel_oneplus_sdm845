@@ -39,6 +39,7 @@ BLOCKING_NOTIFIER_HEAD(msm_drm_notifier_list);
 
 int connector_state_crtc_index;
 
+
 /**
  * msm_drm_register_client - register a client notifier
  * @nb: notifier block to callback on events
@@ -258,7 +259,6 @@ msm_disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state)
 
 		DRM_DEBUG_ATOMIC("disabling [ENCODER:%d:%s]\n",
 				 encoder->base.id, encoder->name);
-
 		blank = MSM_DRM_BLANK_POWERDOWN;
 		notifier_data.data = &blank;
 		notifier_data.id = crtc_idx;

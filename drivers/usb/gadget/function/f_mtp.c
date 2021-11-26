@@ -456,7 +456,6 @@ static struct usb_request *mtp_request_new(struct usb_ep *ep,
 		else
 			mtpBufferOffset += buffer_size;
 	}
-
 	return req;
 }
 
@@ -1005,8 +1004,8 @@ static void send_file_work(struct work_struct *data)
 		pm_qos_update_request(&little_cpu_mtp_freq, MIN_CPUFREQ);
 		pm_qos_update_request(&big_cpu_mtp_freq, MIN_CPUFREQ);
 	}
-	mtp_log("returning %d state:%d\n", r, dev->state);
 
+	mtp_log("returning %d state:%d\n", r, dev->state);
 	/* write the result */
 	dev->xfer_result = r;
 	smp_wmb();
@@ -1040,7 +1039,6 @@ static void receive_file_work(struct work_struct *data)
 	if (!IS_ALIGNED(count, dev->ep_out->maxpacket))
 		mtp_log("- count(%lld) not multiple of mtu(%d)\n",
 						count, dev->ep_out->maxpacket);
-
 	if (delayed_work_pending(&cpu_freq_qos_work))
 		cancel_delayed_work(&cpu_freq_qos_work);
 	pm_qos_update_request(&devfreq_mtp_request, MAX_CPUFREQ);
@@ -1153,6 +1151,7 @@ static void receive_file_work(struct work_struct *data)
 
 	queue_delayed_work(cpu_freq_qos_queue, &cpu_freq_qos_work,
 		msecs_to_jiffies(1000)*3);
+
 	mtp_log("returning %d\n", r);
 	/* write the result */
 	dev->xfer_result = r;
@@ -1419,7 +1418,6 @@ static int mtp_open(struct inode *ip, struct file *fp)
 static int mtp_release(struct inode *ip, struct file *fp)
 {
 	printk(KERN_INFO "mtp_release\n");
-
 	if (mtp_receive_flag) {
 		mtp_receive_flag = false;
 		msm_cpuidle_set_sleep_disable(false);
@@ -1865,6 +1863,7 @@ static int __mtp_setup(struct mtp_instance *fi_mtp)
 	pm_qos_add_request(&little_cpu_mtp_freq, PM_QOS_C0_CPUFREQ_MIN, MIN_CPUFREQ);
 	pm_qos_add_request(&devfreq_mtp_request, PM_QOS_DEVFREQ_MIN, MIN_CPUFREQ);
 	pm_qos_add_request(&big_cpu_mtp_freq, PM_QOS_C1_CPUFREQ_MIN, MIN_CPUFREQ);
+
 	_mtp_dev = dev;
 
 	ret = misc_register(&mtp_device);

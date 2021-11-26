@@ -638,6 +638,7 @@ static int smi_gyro_input_init(struct smi_client_data *client_data)
 		client_data->gyro_input->name);
 	return err;
 }
+//#endif
 static void smi_input_destroy(struct smi_client_data *client_data)
 {
 	struct input_dev *dev = client_data->input;
@@ -2878,7 +2879,7 @@ static ssize_t smi130_show_reg_val(struct device *dev
 	struct smi_client_data *client_data = input_get_drvdata(input);
 
 	ssize_t ret;
-	u8 reg_data[128], i;
+	u8 reg_data[128] = {0}, i;
 	int pos;
 
 	if (client_data == NULL) {
@@ -2912,7 +2913,8 @@ static ssize_t smi130_store_reg_val(struct device *dev
 	struct input_dev *input = to_input_dev(dev);
 	struct smi_client_data *client_data = input_get_drvdata(input);
 	ssize_t ret;
-	u8 reg_data[32];
+	u8 reg_data[32] = {0};
+
 	int i, j, status, digit;
 
 	if (client_data == NULL) {

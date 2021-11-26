@@ -224,6 +224,7 @@ void sde_setup_dspp_pccv4(struct sde_hw_dspp *ctx, void *cfg)
 	}
 
 	pcc_cfg = hw_cfg->payload;
+
 	for (i = 0; i < PCC_NUM_PLANES; i++) {
 		base = ctx->cap->sblk->pcc.base + (i * sizeof(u32));
 		switch (i) {

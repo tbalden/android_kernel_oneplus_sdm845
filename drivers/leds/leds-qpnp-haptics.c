@@ -833,6 +833,8 @@ static int qpnp_haptics_play(struct hap_chip *chip, bool enable)
 
     pr_err(" enable=%d time_ms=%d\n" ,enable, time_ms);
 
+    pr_err(" enable=%d time_ms=%d\n" ,enable, time_ms);
+
 	if (chip->perm_disable && enable)
 		return 0;
 

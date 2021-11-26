@@ -11,6 +11,7 @@
 #include <linux/irq_work.h>
 #include <trace/events/sched.h>
 
+#include "walt.h"
 /* Curtis, 20180109, ux realm */
 #include <../drivers/oneplus/coretech/uxcore/opchain_helper.h>
 
@@ -2669,6 +2670,7 @@ const struct sched_class rt_sched_class = {
 	.update_curr		= update_curr_rt,
 #ifdef CONFIG_SCHED_WALT
 	.fixup_walt_sched_stats	= fixup_walt_sched_stats_common,
+	.fixup_cumulative_runnable_avg = walt_fixup_cumulative_runnable_avg,
 #endif
 };
 

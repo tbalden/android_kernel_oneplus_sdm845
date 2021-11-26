@@ -168,7 +168,7 @@ obj-$(CONFIG_NETFILTER_XT_MATCH_CGROUP) += xt_cgroup.o
 obj-$(CONFIG_NETFILTER_XT_MATCH_PHYSDEV) += xt_physdev.o
 obj-$(CONFIG_NETFILTER_XT_MATCH_PKTTYPE) += xt_pkttype.o
 obj-$(CONFIG_NETFILTER_XT_MATCH_POLICY) += xt_policy.o
-ifeq ($(OEM_PRJ_CODE), 17819)
+ifeq ($(OEM_TARGET_PRODUCT),enchilada)
 obj-$(CONFIG_NETFILTER_XT_MATCH_QTAGUID) += xt_qtaguid_print.o xt_qtaguid.o
 endif
 obj-$(CONFIG_NETFILTER_XT_MATCH_QUOTA) += xt_quota.o

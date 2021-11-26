@@ -85,6 +85,11 @@
 /* curtis, 20180111, opchain*/
 #include <../drivers/oneplus/coretech/uxcore/opchain_helper.h>
 
+#ifdef CONFIG_OP_FREEZER
+// add for op freeze manager
+#include <oneplus/op_freezer/op_freezer.h>
+#endif
+
 static HLIST_HEAD(binder_deferred_list);
 static DEFINE_MUTEX(binder_deferred_lock);
 
@@ -537,7 +542,8 @@ struct binder_priority {
  * @requested_threads_started: number binder threads started
  *                        (protected by @inner_lock)
  * @tmp_ref:              temporary reference to indicate proc is in use
- *                        (protected by @inner_lock)
+ *                        (atomic since @proc->inner_lock cannot
+ *                        always be acquired)
  * @default_priority:     default scheduler priority
  *                        (invariant after initialized)
  * @debugfs_entry:        debugfs node
@@ -571,7 +577,7 @@ struct binder_proc {
 	int max_threads;
 	int requested_threads;
 	int requested_threads_started;
-	int tmp_ref;
+	atomic_t tmp_ref;
 	struct binder_priority default_priority;
 	struct dentry *debugfs_entry;
 	struct binder_alloc alloc;
@@ -2061,9 +2067,9 @@ static void binder_thread_dec_tmpref(struct binder_thread *thread)
 static void binder_proc_dec_tmpref(struct binder_proc *proc)
 {
 	binder_inner_proc_lock(proc);
-	proc->tmp_ref--;
+	atomic_dec(&proc->tmp_ref);
 	if (proc->is_dead && RB_EMPTY_ROOT(&proc->threads) &&
-			!proc->tmp_ref) {
+			!atomic_read(&proc->tmp_ref)) {
 		binder_inner_proc_unlock(proc);
 		binder_free_proc(proc);
 		return;
@@ -2125,8 +2131,26 @@ static struct binder_thread *binder_get_txn_from_and_acq_inner(
 
 static void binder_free_transaction(struct binder_transaction *t)
 {
-	if (t->buffer)
-		t->buffer->transaction = NULL;
+	struct binder_proc *target_proc;
+
+	spin_lock(&t->lock);
+	target_proc = t->to_proc;
+	if (target_proc) {
+		atomic_inc(&target_proc->tmp_ref);
+		spin_unlock(&t->lock);
+
+		binder_inner_proc_lock(target_proc);
+		if (t->buffer)
+			t->buffer->transaction = NULL;
+		binder_inner_proc_unlock(target_proc);
+		binder_proc_dec_tmpref(target_proc);
+	} else {
+		/*
+		 * If the transaction has no target_proc, then
+		 * t->buffer->transaction * has already been cleared.
+		 */
+		spin_unlock(&t->lock);
+	}
 	kfree(t);
 	binder_stats_deleted(BINDER_STAT_TRANSACTION);
 }
@@ -2958,7 +2982,7 @@ static struct binder_node *binder_get_node_refs_for_txn(
 		target_node = node;
 		binder_inc_node_nilocked(node, 1, 0, NULL);
 		binder_inc_node_tmpref_ilocked(node);
-		node->proc->tmp_ref++;
+		atomic_inc(&node->proc->tmp_ref);
 		*procp = node->proc;
 	} else
 		*error = BR_DEAD_REPLY;
@@ -2993,6 +3017,14 @@ static void binder_transaction(struct binder_proc *proc,
 	int t_debug_id = atomic_inc_return(&binder_last_id);
 	char *secctx = NULL;
 	u32 secctx_sz = 0;
+#ifdef CONFIG_OP_FREEZER
+	// add for op freeze manager
+	char buf_data[INTERFACETOKEN_BUFF_SIZE];
+	size_t buf_data_size;
+	char buf[INTERFACETOKEN_BUFF_SIZE] = {0};
+	int i = 0;
+	int j = 0;
+#endif
 
 	e = binder_transaction_log_add(&binder_transaction_log);
 	e->debug_id = t_debug_id;
@@ -3055,7 +3087,7 @@ static void binder_transaction(struct binder_proc *proc,
 			goto err_dead_binder;
 		}
 		target_proc = target_thread->proc;
-		target_proc->tmp_ref++;
+		atomic_inc(&target_proc->tmp_ref);
 		binder_inner_proc_unlock(target_thread->proc);
 	} else {
 		if (tr->target.handle) {
@@ -3108,6 +3140,20 @@ static void binder_transaction(struct binder_proc *proc,
 			return_error_line = __LINE__;
 			goto err_dead_binder;
 		}
+
+#ifdef CONFIG_OP_FREEZER
+		// add for op freeze manager
+		if (!(tr->flags & TF_ONE_WAY) //report sync binder call
+			&& target_proc
+			&& (task_uid(target_proc->tsk).val > MIN_USERAPP_UID)
+			&& (proc->pid != target_proc->pid)
+			&& is_frozen_tg(target_proc->tsk)) {
+			op_freezer_report(SYNC_BINDER,
+					task_tgid_nr(proc->tsk), task_uid(target_proc->tsk).val,
+					"SYNC_BINDER", -1);
+		}
+#endif
+
 		e->to_node = target_node->debug_id;
 		if (security_binder_transaction(proc->tsk,
 						target_proc->tsk) < 0) {
@@ -3317,6 +3363,39 @@ static void binder_transaction(struct binder_proc *proc,
 		return_error_line = __LINE__;
 		goto err_bad_offset;
 	}
+
+#ifdef CONFIG_OP_FREEZER
+	// add for op freeze manager
+		if ((tr->flags & TF_ONE_WAY) //report async binder call
+			&& target_proc
+			&& (task_uid(target_proc->tsk).val > MIN_USERAPP_UID)
+			&& (proc->pid != target_proc->pid)
+			&& is_frozen_tg(target_proc->tsk)) {
+			buf_data_size = tr->data_size > INTERFACETOKEN_BUFF_SIZE ?
+			INTERFACETOKEN_BUFF_SIZE : tr->data_size;
+			if (!copy_from_user(buf_data, (char *)tr->data.ptr.buffer, buf_data_size)) {
+				//1.skip first PARCEL_OFFSET bytes (useless data)
+				//2.make sure the invalid address issue is not occurring(j =PARCEL_OFFSET+1, j+=2)
+				//3.java layer uses 2 bytes char. And only the first bytes has the data.(p+=2)
+				if (buf_data_size > PARCEL_OFFSET) {
+					char *p = (char *)(buf_data) + PARCEL_OFFSET;
+
+					j = PARCEL_OFFSET + 1;
+					while (i < INTERFACETOKEN_BUFF_SIZE && j < buf_data_size && *p != '\0') {
+						buf[i++] = *p;
+						j += 2;
+						p += 2;
+					}
+					if (i == INTERFACETOKEN_BUFF_SIZE)
+						buf[i-1] = '\0';
+				}
+				op_freezer_report(ASYNC_BINDER,
+						task_tgid_nr(proc->tsk), task_uid(target_proc->tsk).val,
+						buf, tr->code);
+			}
+		}
+#endif
+
 	off_start_offset = ALIGN(tr->data_size, sizeof(void *));
 	buffer_offset = off_start_offset;
 	off_end_offset = off_start_offset + tr->offsets_size;
@@ -3324,7 +3403,6 @@ static void binder_transaction(struct binder_proc *proc,
 	sg_buf_end_offset = sg_buf_offset + extra_buffers_size -
 		ALIGN(secctx_sz, sizeof(u64));
 	off_min = 0;
-	/* curtis, 20180111, opchain*/
 	binder_alloc_pass_binder_buffer(&target_proc->alloc,
 					t->buffer, tr->data_size);
 	for (buffer_offset = off_start_offset; buffer_offset < off_end_offset;
@@ -3838,10 +3916,12 @@ static int binder_thread_write(struct binder_proc *proc,
 				     buffer->debug_id,
 				     buffer->transaction ? "active" : "finished");
 
+			binder_inner_proc_lock(proc);
 			if (buffer->transaction) {
 				buffer->transaction->buffer = NULL;
 				buffer->transaction = NULL;
 			}
+			binder_inner_proc_unlock(proc);
 			if (buffer->async_transaction && buffer->target_node) {
 				struct binder_node *buf_node;
 				struct binder_work *w;
@@ -4707,7 +4787,7 @@ static int binder_thread_release(struct binder_proc *proc,
 	 * The corresponding dec is when we actually
 	 * free the thread in binder_free_thread()
 	 */
-	proc->tmp_ref++;
+	atomic_inc(&proc->tmp_ref);
 	/*
 	 * take a ref on this thread to ensure it
 	 * survives while we are releasing it
@@ -5202,6 +5282,7 @@ static int binder_open(struct inode *nodp, struct file *filp)
 		return -ENOMEM;
 	spin_lock_init(&proc->inner_lock);
 	spin_lock_init(&proc->outer_lock);
+	atomic_set(&proc->tmp_ref, 0);
 	get_task_struct(current->group_leader);
 	proc->tsk = current->group_leader;
 	mutex_init(&proc->files_lock);
@@ -5381,7 +5462,7 @@ static void binder_deferred_release(struct binder_proc *proc)
 	 * Make sure proc stays alive after we
 	 * remove all the threads
 	 */
-	proc->tmp_ref++;
+	atomic_inc(&proc->tmp_ref);
 
 	proc->is_dead = true;
 	threads = 0;
@@ -5929,6 +6010,71 @@ static int binder_state_show(struct seq_file *m, void *unused)
 
 	return 0;
 }
+
+#ifdef CONFIG_OP_FREEZER
+// add for op freeze manager
+static void op_freezer_check_uid_proc_status(struct binder_proc *proc)
+{
+	struct rb_node *n = NULL;
+	struct binder_thread *thread = NULL;
+	int uid = -1;
+	struct binder_transaction *btrans = NULL;
+	bool empty = true;
+
+	//check binder_thread/transaction_stack/binder_proc ongoing transaction
+	binder_inner_proc_lock(proc);
+	for (n = rb_first(&proc->threads); n != NULL; n = rb_next(n)) {
+		thread = rb_entry(n, struct binder_thread, rb_node);
+		empty = binder_worklist_empty_ilocked(&thread->todo);
+
+		if (thread->task != NULL) {
+			// has "todo" binder thread in worklist?
+			uid = task_uid(thread->task).val;
+			if (!empty) {
+				binder_inner_proc_unlock(proc);
+				op_freezer_report(FROZEN_TRANS, -1, uid, "FROZEN_TRANS_THREAD", -1);
+				return;
+			}
+
+			// has transcation in transaction_stack?
+			btrans = thread->transaction_stack;
+			if (btrans) {
+				spin_lock(&btrans->lock);
+				if (btrans->to_thread == thread) {
+					// only report incoming binder call
+					spin_unlock(&btrans->lock);
+					binder_inner_proc_unlock(proc);
+					op_freezer_report(FROZEN_TRANS, -1, uid, "FROZEN_TRANS_STACK", -1);
+					return;
+				}
+				spin_unlock(&btrans->lock);
+			}
+		}
+	}
+
+	// has "todo" binder proc in worklist
+	empty = binder_worklist_empty_ilocked(&proc->todo);
+	if (proc->tsk != NULL && !empty) {
+		uid = task_uid(proc->tsk).val;
+		binder_inner_proc_unlock(proc);
+		op_freezer_report(FROZEN_TRANS, -1, uid, "FROZEN_TRANS_PROC", -1);
+		return;
+	}
+	binder_inner_proc_unlock(proc);
+}
+
+void op_freezer_check_frozen_transcation(uid_t uid)
+{
+	struct binder_proc *proc;
+
+	mutex_lock(&binder_procs_lock);
+	hlist_for_each_entry(proc, &binder_procs, proc_node) {
+		if (proc != NULL && (task_uid(proc->tsk).val == uid))
+			op_freezer_check_uid_proc_status(proc);
+	}
+	mutex_unlock(&binder_procs_lock);
+}
+#endif
 
 static int binder_stats_show(struct seq_file *m, void *unused)
 {

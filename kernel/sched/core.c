@@ -97,6 +97,7 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/sched.h>
 #include "walt.h"
+#include <linux/oem/cpufreq_bouncing.h>
 
 ATOMIC_NOTIFIER_HEAD(load_alert_notifier_head);
 
@@ -6071,6 +6072,7 @@ int sched_isolate_cpu(int cpu)
 	calc_load_migrate(rq);
 	update_max_interval();
 	sched_update_group_capacities(cpu);
+	cb_reset(cpu, start_time);
 
 out:
 	cpu_maps_update_done();
@@ -6094,6 +6096,7 @@ int sched_unisolate_cpu_unlocked(int cpu)
 	if (trace_sched_isolate_enabled())
 		start_time = sched_clock();
 
+	cb_reset(cpu, start_time);
 	if (!cpu_isolation_vote[cpu]) {
 		ret_code = -EINVAL;
 		goto out;
@@ -6456,7 +6459,7 @@ static int init_rootdomain(struct root_domain *rd)
 
 	init_max_cpu_capacity(&rd->max_cpu_capacity);
 
-	rd->max_cap_orig_cpu = rd->min_cap_orig_cpu = -1;
+	rd->max_cap_orig_cpu = rd->min_cap_orig_cpu = rd->mid_cap_orig_cpu = -1;
 
 	return 0;
 
@@ -8063,9 +8066,9 @@ int sched_cpu_deactivate(unsigned int cpu)
 	 * Do sync before park smpboot threads to take care the rcu boost case.
 	 */
 	if (IS_ENABLED(CONFIG_PREEMPT))
-		synchronize_rcu_mult(call_rcu, call_rcu_sched);
-	else
-		synchronize_rcu();
+		synchronize_sched();
+
+	synchronize_rcu();
 
 #ifdef CONFIG_SCHED_SMT
 	/*
@@ -9197,10 +9200,6 @@ static int cpu_cgroup_can_attach(struct cgroup_taskset *tset)
 #ifdef CONFIG_RT_GROUP_SCHED
 		if (!sched_rt_can_attach(css_tg(css), task))
 			return -EINVAL;
-#else
-		/* We don't support RT-tasks being in separate groups */
-		if (task->sched_class != &fair_sched_class)
-			return -EINVAL;
 #endif
 		/*
 		 * Serialize against wake_up_new_task() such that if its
@@ -9235,6 +9234,8 @@ static void cpu_cgroup_attach(struct cgroup_taskset *tset)
 static int cpu_shares_write_u64(struct cgroup_subsys_state *css,
 				struct cftype *cftype, u64 shareval)
 {
+	if (shareval > scale_load_down(ULONG_MAX))
+		shareval = MAX_SHARES;
 	return sched_group_set_shares(css_tg(css), scale_load(shareval));
 }
 
@@ -9334,8 +9335,10 @@ int tg_set_cfs_quota(struct task_group *tg, long cfs_quota_us)
 	period = ktime_to_ns(tg->cfs_bandwidth.period);
 	if (cfs_quota_us < 0)
 		quota = RUNTIME_INF;
-	else
+	else if ((u64)cfs_quota_us <= U64_MAX / NSEC_PER_USEC)
 		quota = (u64)cfs_quota_us * NSEC_PER_USEC;
+	else
+		return -EINVAL;
 
 	return tg_set_cfs_bandwidth(tg, period, quota);
 }
@@ -9356,6 +9359,9 @@ long tg_get_cfs_quota(struct task_group *tg)
 int tg_set_cfs_period(struct task_group *tg, long cfs_period_us)
 {
 	u64 quota, period;
+
+	if ((u64)cfs_period_us > U64_MAX / NSEC_PER_USEC)
+		return -EINVAL;
 
 	period = (u64)cfs_period_us * NSEC_PER_USEC;
 	quota = tg->cfs_bandwidth.quota;

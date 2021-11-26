@@ -309,7 +309,7 @@ static int hiddev_open(struct inode *inode, struct file *file)
 
 	mutex_lock(&hiddev->existancelock);
 	/*
-	 * recheck exist with existence lock held to
+	 * recheck exist with existance lock held to
 	 * avoid opening a disconnected device
 	 */
 	if (!list->hiddev->exist) {
@@ -962,9 +962,9 @@ void hiddev_disconnect(struct hid_device *hid)
 	hiddev->exist = 0;
 
 	if (hiddev->open) {
-		mutex_unlock(&hiddev->existancelock);
 		usbhid_close(hiddev->hid);
 		wake_up_interruptible(&hiddev->wait);
+		mutex_unlock(&hiddev->existancelock);
 	} else {
 		mutex_unlock(&hiddev->existancelock);
 		kfree(hiddev);

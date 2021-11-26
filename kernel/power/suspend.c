@@ -32,19 +32,13 @@
 #include <linux/moduleparam.h>
 #include <linux/wakeup_reason.h>
 #include <linux/gpio.h>
-
 #include "power.h"
-
-
 #define PROC_AWAKE_ID 12 /* 12th bit */
-
 const char *pm_labels[] = { "mem", "standby", "freeze", NULL };
 const char *pm_states[PM_SUSPEND_MAX];
 
 unsigned int pm_suspend_global_flags;
 EXPORT_SYMBOL_GPL(pm_suspend_global_flags);
-
-
 static const struct platform_suspend_ops *suspend_ops;
 static const struct platform_freeze_ops *freeze_ops;
 static DECLARE_WAIT_QUEUE_HEAD(suspend_freeze_wait_head);

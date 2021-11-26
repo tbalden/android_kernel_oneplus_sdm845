@@ -632,7 +632,7 @@ static struct console pstore_console = {
 
 static void pstore_register_console(void)
 {
-    pstore_console_init();
+	pstore_console_init();
 	register_console(&pstore_console);
 }
 

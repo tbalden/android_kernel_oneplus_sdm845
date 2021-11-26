@@ -37,13 +37,16 @@ struct external_battery_gauge {
 	bool (*is_usb_switch_on)(void);
 	int (*get_battery_status)(void);
 	int (*get_batt_remaining_capacity)(void);
+	int (*get_batt_full_chg_capacity)(void);
 	int (*get_batt_health)(void);
 	int (*get_batt_bq_soc)(void);
 	int (*monitor_for_recharging)(void);
 	int (*get_battery_soc)(void);
 	int (*get_average_current)(void);
 	int (*get_batt_cc)(void);
+	/* yangfangbiao@oneplus.cn, 2015/02/13  Add fcc interface */
 	int (*get_batt_fcc)(void);
+	/* yangfangbiao@oneplus.cn, */
 	/*2015/01/06  Modify for  sync with KK charge standard  */
 	bool (*fast_chg_started)(void);
 	bool (*fast_switch_to_normal)(void);

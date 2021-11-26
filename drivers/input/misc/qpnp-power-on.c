@@ -203,6 +203,7 @@ struct pon_regulator {
 	bool			enabled;
 };
 
+
 static int pon_ship_mode_en;
 module_param_named(
 	ship_mode_en, pon_ship_mode_en, int, 0600
@@ -1310,7 +1311,8 @@ static int param_set_long_press_pwr_dump_enabled
 			s1_timer_bak = cfg->s1_timer;
 			s2_type_bak  = cfg->s2_type;
 
-			cfg->s1_timer = 1352; /*reduce this time */
+			cfg->s1_timer = 10256; /*reduce this time */
+			cfg->s2_timer = 2000;
 			cfg->s2_type = 1; /*change s2 type to warm reset*/
 
 			rc = qpnp_config_reset(pon, cfg);

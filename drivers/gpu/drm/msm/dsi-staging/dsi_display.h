@@ -411,6 +411,7 @@ int dsi_display_validate_mode_change(struct dsi_display *display,
 
 extern int connector_state_crtc_index;
 extern int msm_drm_notifier_call_chain(unsigned long val, void *v);
+
 /**
  * dsi_display_set_mode() - Set mode on the display.
  * @display:           Handle to display.

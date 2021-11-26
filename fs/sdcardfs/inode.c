@@ -70,6 +70,11 @@ static long long sdcardfs_gettag(void)
 	return atomic64_read(&unexist_tag);
 }
 
+/*ashwini.jain, 2021/05/27 non-exist dcache lookup adding for lower_filesystem EID-11947*/
+void settag_all(void){
+	sdcardfs_settag();
+}
+
 static int sdcardfs_create(struct inode *dir, struct dentry *dentry,
 			 umode_t mode, bool want_excl)
 {

@@ -2640,6 +2640,79 @@ static const struct file_operations proc_pid_set_timerslack_ns_operations = {
 	.release	= single_release,
 };
 
+#ifdef CONFIG_TPD
+static ssize_t
+tpd_write(struct file *file, const char __user *buf,
+	size_t count, loff_t *offset)
+{
+	struct task_struct *task;
+	char buffer[PROC_NUMBUF];
+	int err, tpdecision;
+
+	memset(buffer, 0, sizeof(buffer));
+	if (count > sizeof(buffer) - 1)
+		count = sizeof(buffer) - 1;
+	if (copy_from_user(buffer, buf, count))
+		return -EFAULT;
+
+	err = kstrtoint(strstrip(buffer), 0, &tpdecision);
+	if (err)
+		return err;
+
+	task = get_proc_task(file_inode(file));
+	if (!task)
+		return -ESRCH;
+
+	task->tpd = (tpdecision != 0) ? tpdecision : 0;
+
+	put_task_struct(task);
+
+	return count;
+}
+
+static int tpd_show(struct seq_file *m, void *v)
+{
+	struct inode *inode = m->private;
+	struct task_struct *p;
+
+	p = get_proc_task(inode);
+	if (!p)
+		return -ESRCH;
+	seq_printf(m, "%d\n", p->tpd);
+	put_task_struct(p);
+	return 0;
+}
+
+static int tpd_open(struct inode *inode, struct file *filp)
+{
+	return single_open(filp, tpd_show, inode);
+}
+
+static ssize_t tpd_read(struct file *file, char __user *buf,
+		size_t count, loff_t *ppos)
+{
+	char buffer[PROC_NUMBUF];
+	struct task_struct *task = NULL;
+	int tpdecision;
+	size_t len = 0;
+
+	task = get_proc_task(file_inode(file));
+	if (!task)
+		return -ESRCH;
+	tpdecision = task->tpd;
+	put_task_struct(task);
+	len = snprintf(buffer, sizeof(buffer), "%d\n", tpdecision);
+	return simple_read_from_buffer(buf, count, ppos, buffer, len);
+}
+static const struct file_operations proc_tpd_operation = {
+	.open           = tpd_open,
+	.read           = tpd_read,
+	.write          = tpd_write,
+	.llseek         = seq_lseek,
+	.release        = single_release,
+};
+#endif /* CONFIG_TPD */
+
 static int proc_pident_instantiate(struct inode *dir,
 	struct dentry *dentry, struct task_struct *task, const void *ptr)
 {
@@ -3363,7 +3436,7 @@ static const struct pid_entry tgid_base_stuff[] = {
 	REG("mountinfo",  S_IRUGO, proc_mountinfo_operations),
 	REG("mountstats", S_IRUSR, proc_mountstats_operations),
 #ifdef CONFIG_PROCESS_RECLAIM
-	REG("reclaim", S_IWUSR, proc_reclaim_operations),
+	REG("reclaim", 0222, proc_reclaim_operations),
 #endif
 #ifdef CONFIG_PROC_PAGE_MONITOR
 	REG("clear_refs", S_IWUSR, proc_clear_refs_operations),
@@ -3436,6 +3509,9 @@ static const struct pid_entry tgid_base_stuff[] = {
 	REG("page_hot_count", 0666, proc_page_hot_count_operations),
 #endif
 	REG("va_feature", 0666, proc_va_feature_operations),
+#ifdef CONFIG_TPD
+	REG("tpd", 0666, proc_tpd_operation),
+#endif
 };
 
 static int proc_tgid_base_readdir(struct file *file, struct dir_context *ctx)
@@ -3449,6 +3525,15 @@ static const struct file_operations proc_tgid_base_operations = {
 	.iterate_shared	= proc_tgid_base_readdir,
 	.llseek		= generic_file_llseek,
 };
+
+struct pid *tgid_pidfd_to_pid(const struct file *file)
+{
+	if (!d_is_dir(file->f_path.dentry) ||
+	    (file->f_op != &proc_tgid_base_operations))
+		return ERR_PTR(-EBADF);
+
+	return proc_pid(file_inode(file));
+}
 
 static struct dentry *proc_tgid_base_lookup(struct inode *dir, struct dentry *dentry, unsigned int flags)
 {
@@ -3827,6 +3912,9 @@ static const struct pid_entry tid_base_stuff[] = {
 #endif
 #ifdef CONFIG_CPU_FREQ_TIMES
 	ONE("time_in_state", 0444, proc_time_in_state_show),
+#endif
+#ifdef CONFIG_TPD
+	REG("tpd", 0666, proc_tpd_operation),
 #endif
 };
 

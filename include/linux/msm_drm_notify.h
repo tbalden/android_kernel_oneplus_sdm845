@@ -49,6 +49,6 @@ struct msm_drm_notifier {
 	void *data;
 };
 
-extern int msm_drm_register_client(struct notifier_block *nb);
-extern int msm_drm_unregister_client(struct notifier_block *nb);
+int msm_drm_register_client(struct notifier_block *nb);
+int msm_drm_unregister_client(struct notifier_block *nb);
 #endif

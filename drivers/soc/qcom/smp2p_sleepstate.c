@@ -22,7 +22,6 @@
 #define PROC_AWAKE_ID 12 /* 12th bit */
 //static int slst_gpio_base_id;
 int slst_gpio_base_id;
-
 /**
  * sleepstate_pm_notifier() - PM notifier callback function.
  * @nb:		Pointer to the notifier block.

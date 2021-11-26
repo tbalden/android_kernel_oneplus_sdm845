@@ -2013,8 +2013,7 @@ static u32 sde_hw_rotator_wait_done_regdma(
 			spin_unlock_irqrestore(&rot->rotisr_lock, flags);
 
 			if (ubwcerr || abort ||
-					sde_hw_rotator_halt_vbif_xin_client()) {
-				/*
+					sde_hw_rotator_halt_vbif_xin_client()) {				/*
 				 * Perform recovery for ROT SSPP UBWC decode
 				 * error.
 				 * - SW reset rotator hw block
@@ -3376,6 +3375,8 @@ static ssize_t sde_hw_rotator_show_caps(struct sde_rot_mgr *mgr,
 
 	if (hw_data->downscale_caps)
 		SPRINT("downscale_ratios=%s\n", hw_data->downscale_caps);
+
+	SPRINT("max_line_width=%d\n", sde_rotator_get_maxlinewidth(mgr));
 
 #undef SPRINT
 	return cnt;

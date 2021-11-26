@@ -323,7 +323,9 @@ struct miscdevice param_misc = {
 
 static int __init param_init(void)
 {
+#ifdef CONFIG_DEBUG_PARAM_DUMP
 	int i;
+#endif
 	int ret = 0;
 
 	if(param_ram_buffer_map((phys_addr_t)param_ram_zone.paddr,
@@ -332,12 +334,14 @@ static int __init param_init(void)
 		return -1;
 	}
 	mutex_init(&param_ram_zone.mutex);
+
+#ifdef CONFIG_DEBUG_PARAM_DUMP
 	for (i = 0; i < NUM_PARAM_PLAINTEXT_SEGMENT; i++) {
-		break;//do not dump param
 		printk("===dump chunk %d===\n", i);
 		print_hex_dump (KERN_ERR, "",DUMP_PREFIX_OFFSET,16, 4,
 		    param_ram_zone.buffer +1024*i, default_param_data_dump_size,1);
 	}
+#endif
 
 	param_init_done= 1;
 

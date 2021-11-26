@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2016-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -132,7 +132,7 @@ struct dsi_panel_reset_config {
 	int reset_gpio;
 	int disp_en_gpio;
 	int lcd_mode_sel_gpio;
-    int vci_gpio;
+	int vci_gpio;
 	int poc_gpio;
 	u32 mode_sel_state;
 };
@@ -162,6 +162,17 @@ enum dsi_panel_type {
 	DSI_PANEL = 0,
 	EXT_BRIDGE,
 	DSI_PANEL_TYPE_MAX,
+};
+
+/* Extended Panel config for panels with additional gpios */
+struct dsi_panel_exd_config {
+	int display_1p8_en;
+	int led_5v_en;
+	int switch_power;
+	int led_en1;
+	int led_en2;
+	int oenab;
+	int selab;
 };
 
 struct dsi_panel {
@@ -238,6 +249,8 @@ struct dsi_panel {
 	enum dsi_dms_mode dms_mode;
 
 	bool sync_broadcast_en;
+
+	struct dsi_panel_exd_config exd_config;
 };
 
 static inline bool dsi_panel_ulps_feature_enabled(struct dsi_panel *panel)
@@ -333,12 +346,15 @@ void dsi_dsc_pclk_param_calc(struct msm_display_dsc_info *dsc, int intf_width);
 struct dsi_panel *dsi_panel_ext_bridge_get(struct device *parent,
 				struct device_node *of_node,
 				int topology_override);
+
 int dsi_panel_parse_esd_reg_read_configs(struct dsi_panel *panel,
 				struct device_node *of_node);
+
 void dsi_panel_ext_bridge_put(struct dsi_panel *panel);
 int dsi_panel_set_acl_mode(struct dsi_panel *panel, int level);
 int dsi_panel_set_hbm_mode(struct dsi_panel *panel, int level);
 int dsi_panel_op_set_hbm_mode(struct dsi_panel *panel, int level);
+
 int dsi_panel_set_aod_mode(struct dsi_panel *panel, int level);
 int dsi_panel_set_native_display_p3_mode(struct dsi_panel *panel, int level);
 int dsi_panel_set_native_display_wide_color_mode(struct dsi_panel *panel, int level);
@@ -350,7 +366,4 @@ int dsi_panel_send_dsi_seed_command(struct dsi_panel *panel);
 int dsi_panel_send_dsi_panel_command(struct dsi_panel *panel);
 int dsi_panel_update_cmd_sets_sub(struct dsi_panel_cmd_set *cmd,
 					enum dsi_cmd_set_type type, const char *data, unsigned int length);
-
-
-
 #endif /* _DSI_PANEL_H_ */

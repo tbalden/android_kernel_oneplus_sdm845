@@ -177,7 +177,8 @@ static inline int subsystem_restart_dev(struct subsys_device *dev)
 	return 0;
 }
 
-static inline void subsys_store_crash_reason(struct subsys_device *dev, char *reason) { }
+static inline void subsys_store_crash_reason(struct subsys_device *dev,
+					     char *reason) { }
 
 static inline int subsystem_restart(const char *name)
 {

@@ -122,3 +122,7 @@ kernel/configs/android-*.cfg
 # drivers/oneplus
 out
 
+#
+#Ignoring Android.bp link file
+#
+Android.bp

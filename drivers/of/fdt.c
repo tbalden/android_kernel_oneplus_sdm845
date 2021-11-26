@@ -624,9 +624,9 @@ static int __init __reserved_mem_reserve_reg(unsigned long node,
 
 
 //hefaxi@bsp, 2015/11/02, add for param partition module.
-			if(!strncmp(uname, "param_mem",9)){
-				init_param_mem_base_size(base,size);
-			}
+		if(!strncmp(uname, "param_mem",9)){
+			init_param_mem_base_size(base,size);
+		}
 
 		len -= t_len;
 		if (first) {
@@ -1074,7 +1074,7 @@ int __init early_init_dt_scan_memory(unsigned long node, const char *uname,
 		pr_debug(" - %llx ,  %llx\n", (unsigned long long)base,
 		    (unsigned long long)size);
 /*add by yangrujin@bsp 2015/11/10, porting from oneplus2 for ftm mode get ddr size*/
-        ddr_size += size;
+		ddr_size += size;
 		early_init_dt_add_memory_arch(base, size);
 	}
 

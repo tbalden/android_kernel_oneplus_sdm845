@@ -536,6 +536,7 @@ static int bmi_gyro_input_init(struct bmi_client_data *client_data)
 		client_data->gyro_input->name);
 	return err;
 }
+//#endif
 static void bmi_input_destroy(struct bmi_client_data *client_data)
 {
 	struct input_dev *dev = client_data->input;

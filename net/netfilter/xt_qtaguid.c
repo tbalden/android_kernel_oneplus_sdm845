@@ -532,7 +532,7 @@ static void put_utd_entry(struct uid_tag_data *utd_entry)
 			 __func__,
 			 utd_entry, utd_entry->uid,
 			 current->pid, current->tgid, from_kuid(&init_user_ns,
-								current_fsuid()));
+			 current_fsuid()));
 		BUG_ON(utd_entry->num_active_tags);
 		rb_erase(&utd_entry->node, &uid_tag_data_tree);
 		kfree(utd_entry);
@@ -1148,11 +1148,11 @@ static void get_dev_and_dir(const struct sk_buff *skb,
 		       par->hooknum, __func__);
 		BUG();
 	}
-	if (unlikely(!(*el_dev)->name)) {
-		pr_err("qtaguid[%d]: %s(): no dev->name?!!\n",
-		       par->hooknum, __func__);
-		BUG();
-	}
+//	if (unlikely(!(*el_dev)->name)) {
+//		pr_err("qtaguid[%d]: %s(): no dev->name?!!\n",
+//		       par->hooknum, __func__);
+//		BUG();
+//	}
 	if (skb->dev && *el_dev != skb->dev) {
 		MT_DEBUG("qtaguid[%d]: skb->dev=%pK %s vs par->%s=%pK %s\n",
 			 par->hooknum, skb->dev, skb->dev->name,
@@ -2315,7 +2315,6 @@ int qtaguid_untag(struct socket *el_socket, bool kernel)
 		pid = current->tgid;
 	pqd_entry = proc_qtu_data_tree_search(
 		&proc_qtu_data_tree, pid);
-
 	/* TODO: remove if, and start failing.
 	 * At first, we want to catch user-space code that is not
 	 * opening the /dev/xt_qtaguid.
@@ -2325,13 +2324,13 @@ int qtaguid_untag(struct socket *el_socket, bool kernel)
 			     __func__,
 					 current->pid, current->tgid, sock_tag_entry->pid,
 					 from_kuid(&init_user_ns, current_fsuid()));
-	/*
-	 * This check is needed because tagging from a process that
+	/* This check is needed because tagging from a process that
 	 * didn’t open /dev/xt_qtaguid still adds the sock_tag_entry
 	 * to sock_tag_tree.
 	 */
 	if (sock_tag_entry->list.next)
 		list_del(&sock_tag_entry->list);
+	
 
 	spin_unlock_bh(&uid_tag_data_tree_lock);
 	/* We don't free tag_ref from the utd_entry here,
@@ -2560,8 +2559,8 @@ static void *qtaguid_stats_proc_start(struct seq_file *m, loff_t *pos)
 			ppi->iface_entry = NULL;
 		} else {
 			ppi->iface_entry = list_first_entry(&iface_stat_list,
-												struct iface_stat,
-												list);
+											struct iface_stat,
+											list);
 			spin_lock_bh(&ppi->iface_entry->tag_stat_list_lock);
 		}
 		return SEQ_START_TOKEN;

@@ -2844,7 +2844,7 @@ void sde_plane_clear_multirect(const struct drm_plane_state *drm_state)
 	pstate->multirect_mode = SDE_SSPP_MULTIRECT_NONE;
 }
 
-//xiaoxiaohuan@OnePlus.MultiMediaService, add for fingerprint
+//sandeep.vulluri@OnePlus.MultiMediaService, add for fingerprint
 int sde_plane_check_fingerprint_layer(const struct drm_plane_state *drm_state)
 {
 	struct sde_plane_state *pstate;
@@ -4305,7 +4305,7 @@ static void _sde_plane_install_properties(struct drm_plane *plane,
 	msm_property_install_range(&psde->property_info, "zpos",
 		0x0, 0, zpos_max, zpos_def, PLANE_PROP_ZPOS);
 
-	//xiaoxiaohuan@OnePlus.MultiMediaService, add for fingerprint
+	//sandeep.vulluri@OnePlus.MultiMediaService, add for fingerprint
 	msm_property_install_range(&psde->property_info, "PLANE_CUST",
 			0x0, 0, INT_MAX, 0, PLANE_PROP_CUSTOM);
 

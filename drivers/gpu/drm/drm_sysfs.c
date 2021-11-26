@@ -233,6 +233,7 @@ static ssize_t modes_show(struct device *device,
 
 	return written;
 }
+
 static ssize_t dsi_panel_command_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -279,6 +280,7 @@ static ssize_t dsi_seed_command_store(struct device *dev,
 
 	return count;
 }
+
 static ssize_t acl_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -554,7 +556,6 @@ static ssize_t aod_test_store(struct device *dev,
 
 	return count;
 }
-
 static ssize_t aod_disable_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -590,6 +591,7 @@ static ssize_t aod_disable_store(struct device *dev,
 
 	return count;
 }
+
 
 static ssize_t panel_serial_number_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -672,9 +674,9 @@ static ssize_t panel_mismatch_show(struct device *dev,
 
 int oneplus_panel_alpha;
 int oneplus_force_screenfp;
-int op_dimlayer_bl_enable = 0;
-int op_dp_enable = 0;
-int op_dither_enable = 0;
+int op_dimlayer_bl_enable;
+int op_dp_enable;
+int op_dither_enable;
 extern int oneplus_get_panel_brightness_to_alpha(void);
 
 static ssize_t oneplus_display_get_dim_alpha(struct device *dev,
@@ -994,9 +996,6 @@ static DEVICE_ATTR_RW(native_display_wide_color_mode);
 static DEVICE_ATTR_RW(native_display_srgb_color_mode);
 static DEVICE_ATTR_RW(native_display_customer_p3_mode);
 static DEVICE_ATTR_RW(native_display_customer_srgb_mode);
-static DEVICE_ATTR_RW(dsi_panel_command);
-static DEVICE_ATTR_RW(dsi_seed_command);
-
 static DEVICE_ATTR_RO(panel_serial_number);
 static DEVICE_ATTR_RW(dynamic_dsitiming);
 static DEVICE_ATTR_RO(panel_mismatch);
@@ -1011,13 +1010,16 @@ static DEVICE_ATTR(notify_dim, S_IRUGO|S_IWUSR, NULL,
 	oneplus_display_notify_dim);
 static DEVICE_ATTR(notify_aod, S_IRUGO|S_IWUSR, NULL,
 	oneplus_display_notify_aod_hid);
-static DEVICE_ATTR(dp_en, S_IRUGO|S_IWUSR,
-	op_display_get_dp_enable, op_display_set_dp_enable);
-static DEVICE_ATTR(dither_en, S_IRUGO|S_IWUSR,
-	op_display_get_dither_enable, op_display_set_dither_enable);
-static DEVICE_ATTR(dimlayer_bl_en, S_IRUGO|S_IWUSR,
-	op_display_get_dimlayer_enable, op_display_set_dimlayer_enable);
 
+static DEVICE_ATTR(dp_en, S_IRUGO|S_IWUSR,
+       op_display_get_dp_enable, op_display_set_dp_enable);
+static DEVICE_ATTR(dither_en, S_IRUGO|S_IWUSR,
+       op_display_get_dither_enable, op_display_set_dither_enable);
+static DEVICE_ATTR(dimlayer_bl_en, S_IRUGO|S_IWUSR,
+       op_display_get_dimlayer_enable, op_display_set_dimlayer_enable);
+
+static DEVICE_ATTR_RW(dsi_panel_command);
+static DEVICE_ATTR_RW(dsi_seed_command);
 
 static struct attribute *connector_dev_attrs[] = {
 	&dev_attr_status.attr,
@@ -1034,8 +1036,6 @@ static struct attribute *connector_dev_attrs[] = {
 	&dev_attr_native_display_srgb_color_mode.attr,
 	&dev_attr_native_display_customer_p3_mode.attr,
 	&dev_attr_native_display_customer_srgb_mode.attr,
-	&dev_attr_dsi_panel_command.attr,
-	&dev_attr_dsi_seed_command.attr,
 	&dev_attr_panel_serial_number.attr,
 	&dev_attr_dynamic_dsitiming.attr,
 	&dev_attr_panel_mismatch.attr,
@@ -1045,6 +1045,8 @@ static struct attribute *connector_dev_attrs[] = {
 	&dev_attr_notify_fppress.attr,
 	&dev_attr_notify_dim.attr,
 	&dev_attr_notify_aod.attr,
+	&dev_attr_dsi_panel_command.attr,
+	&dev_attr_dsi_seed_command.attr,
 	&dev_attr_dimlayer_bl_en.attr,
 	&dev_attr_dp_en.attr,
 	&dev_attr_dither_en.attr,

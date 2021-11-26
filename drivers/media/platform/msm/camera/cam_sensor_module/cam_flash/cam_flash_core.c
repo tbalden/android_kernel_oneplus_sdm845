@@ -219,7 +219,7 @@ static int cam_flash_ops(struct cam_flash_ctrl *flash_ctrl,
 	if (flash_ctrl->switch_trigger)
 		cam_res_mgr_led_trigger_event(
 			flash_ctrl->switch_trigger,
-			LED_SWITCH_ON);
+			(enum led_brightness)LED_SWITCH_ON);
 
 	return 0;
 }
@@ -250,7 +250,7 @@ int cam_flash_off(struct cam_flash_ctrl *flash_ctrl)
 
 	if (flash_ctrl->switch_trigger)
 		cam_res_mgr_led_trigger_event(flash_ctrl->switch_trigger,
-			LED_SWITCH_OFF);
+			(enum led_brightness)LED_SWITCH_OFF);
 
 	flash_ctrl->flash_state = CAM_FLASH_STATE_START;
 #if CONFIG_UCI

@@ -591,25 +591,25 @@
 		pil_cdsp_mem: cdsp_region@0x95d00000 {
 			compatible = "removed-dma-pool";
 			no-map;
-			reg = <0 0x95d00000 0 0x800000>;
+			reg = <0 0x95d00000 0 0x900000>;
 		};
 
-		pil_mba_mem: mba_region@0x96500000 {
+		pil_mba_mem: mba_region@0x96600000 {
 			compatible = "removed-dma-pool";
 			no-map;
-			reg = <0 0x96500000 0 0x200000>;
+			reg = <0 0x96600000 0 0x200000>;
 		};
 
-		pil_slpi_mem: slpi_region@0x96700000 {
+		pil_slpi_mem: slpi_region@0x96800000 {
 			compatible = "removed-dma-pool";
 			no-map;
-			reg = <0 0x96700000 0 0x1400000>;
+			reg = <0 0x96800000 0 0x1400000>;
 		};
 
-		pil_spss_mem: pil_spss_region@0x97b00000 {
+		pil_spss_mem: pil_spss_region@0x97c00000 {
 			compatible = "removed-dma-pool";
 			no-map;
-			reg = <0 0x97b00000 0 0x100000>;
+			reg = <0 0x97c00000 0 0x100000>;
 		};
 
 		adsp_mem: adsp_region {
@@ -1549,6 +1549,7 @@
 		vdd_mss-supply = <&pm8005_s2_level>;
 		vdd_mss-uV = <RPMH_REGULATOR_LEVEL_TURBO>;
 		qcom,firmware-name = "modem";
+		qcom,sequential-fw-load;
 		qcom,pil-self-auth;
 		qcom,sysmon-id = <0>;
 		qcom,minidump-id = <3>;
@@ -2508,6 +2509,7 @@
 		qcom,support-fde;
 		qcom,no-clock-support;
 		qcom,fde-key-size;
+		qcom,commonlib64-loaded-by-uefi;
 		qcom,msm-bus,name = "qseecom-noc";
 		qcom,msm-bus,num-cases = <4>;
 		qcom,msm-bus,num-paths = <1>;
@@ -3202,6 +3204,12 @@
 					hysteresis = <1000>;
 					type = "passive";
 				};
+
+				thermal-hal-cfg {
+					temperature = <115000>;
+					hysteresis = <5000>;
+					type = "passive";
+				};
 			};
 		};
 
@@ -3215,6 +3223,12 @@
 				active-config0 {
 					temperature = <125000>;
 					hysteresis = <1000>;
+					type = "passive";
+				};
+
+				thermal-hal-cfg {
+					temperature = <115000>;
+					hysteresis = <5000>;
 					type = "passive";
 				};
 			};
@@ -3232,6 +3246,12 @@
 					hysteresis = <1000>;
 					type = "passive";
 				};
+
+				thermal-hal-cfg {
+					temperature = <115000>;
+					hysteresis = <5000>;
+					type = "passive";
+				};
 			};
 		};
 
@@ -3245,6 +3265,12 @@
 				active-config0 {
 					temperature = <125000>;
 					hysteresis = <1000>;
+					type = "passive";
+				};
+
+				thermal-hal-cfg {
+					temperature = <115000>;
+					hysteresis = <5000>;
 					type = "passive";
 				};
 			};
@@ -3292,6 +3318,12 @@
 					hysteresis = <1000>;
 					type = "passive";
 				};
+
+				thermal-hal-cfg {
+					temperature = <115000>;
+					hysteresis = <5000>;
+					type = "passive";
+				};
 			};
 		};
 
@@ -3305,6 +3337,12 @@
 				active-config0 {
 					temperature = <125000>;
 					hysteresis = <1000>;
+					type = "passive";
+				};
+
+				thermal-hal-cfg {
+					temperature = <115000>;
+					hysteresis = <5000>;
 					type = "passive";
 				};
 			};
@@ -3322,6 +3360,12 @@
 					hysteresis = <1000>;
 					type = "passive";
 				};
+
+				thermal-hal-cfg {
+					temperature = <115000>;
+					hysteresis = <5000>;
+					type = "passive";
+				};
 			};
 		};
 
@@ -3335,6 +3379,12 @@
 				active-config0 {
 					temperature = <125000>;
 					hysteresis = <1000>;
+					type = "passive";
+				};
+
+				thermal-hal-cfg {
+					temperature = <115000>;
+					hysteresis = <5000>;
 					type = "passive";
 				};
 			};
@@ -3352,6 +3402,12 @@
 					hysteresis = <1000>;
 					type = "passive";
 				};
+
+				thermal-hal-cfg {
+					temperature = <115000>;
+					hysteresis = <5000>;
+					type = "passive";
+				};
 			};
 		};
 
@@ -3365,6 +3421,12 @@
 				active-config0 {
 					temperature = <125000>;
 					hysteresis = <1000>;
+					type = "passive";
+				};
+
+				thermal-hal-cfg {
+					temperature = <115000>;
+					hysteresis = <5000>;
 					type = "passive";
 				};
 			};

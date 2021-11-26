@@ -721,7 +721,6 @@ static int qpnp_flash_led_hw_strobe_enable(struct flash_node_data *fnode,
 	return rc;
 }
 
-
 static int qpnp_flash_led_regulator_enable(struct qpnp_flash_led *led,
 				struct flash_switch_data *snode, bool on)
 {

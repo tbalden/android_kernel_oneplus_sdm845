@@ -78,6 +78,8 @@ obj-$(CONFIG_MSM_PIL_MSS_QDSP6V5) += pil-q6v5.o pil-msa.o pil-q6v5-mss.o
 obj-$(CONFIG_MSM_BGCOM) += bgcom_spi.o
 
 obj-$(CONFIG_MSM_PERFORMANCE) += msm_performance.o
+obj-$(CONFIG_SDX_EXT_IPC) += sdx_ext_ipc.o
+obj-$(CONFIG_QTI_NOTIFY_SIDEBAND) += sideband_notify.o
 
 ifdef CONFIG_MSM_SUBSYSTEM_RESTART
        obj-y += subsystem_notif.o
@@ -106,9 +108,8 @@ obj-$(CONFIG_QCOM_SMCINVOKE) += smcinvoke.o
 obj-$(CONFIG_QMP_DEBUGFS_CLIENT) += qmp-debugfs-client.o
 obj-$(CONFIG_MSM_REMOTEQDSS) += remoteqdss.o
 obj-$(CONFIG_QSEE_IPC_IRQ_BRIDGE) += qsee_ipc_irq_bridge.o
-obj-y += project_info.o
+obj-$(CONFIG_PROJECT_INFO) += project_info.o
 obj-$(CONFIG_RF_CABLE_DETECT) += op_rf_cable_monitor.o
-
 obj-$(CONFIG_QCOM_QDSS_BRIDGE) += qdss_bridge.o
 obj-$(CONFIG_MSM_BAM_DMUX) += bam_dmux.o
 obj-$(CONFIG_WCNSS_CORE) += wcnss/

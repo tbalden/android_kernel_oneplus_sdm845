@@ -2824,6 +2824,7 @@ static int fsg_main_thread(void *common_)
 {
 	struct fsg_common	*common = common_;
 	int			i;
+	int			ret;
 
 	/*
 	 * Allow the thread to be killed by a signal, but set the signal mask
@@ -2852,7 +2853,9 @@ static int fsg_main_thread(void *common_)
 		}
 
 		if (!common->running) {
-			sleep_thread(common, true);
+			ret = sleep_thread(common, true);
+			if (ret < 0)
+				pr_err("Sleep thread pending signal\n");
 			continue;
 		}
 

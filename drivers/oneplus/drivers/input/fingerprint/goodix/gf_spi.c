@@ -56,7 +56,6 @@
 
 #include "../fingerprint_detect/fingerprint_detect.h"
 
-
 #define VER_MAJOR   1
 #define VER_MINOR   2
 #define PATCH_LEVEL 8

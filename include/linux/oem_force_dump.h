@@ -14,3 +14,4 @@ extern int oem_get_download_mode(void);
 void send_msg(char *message);
 int  msm_serial_oem_init(void);
 #endif
+
