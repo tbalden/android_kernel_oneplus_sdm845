@@ -51,7 +51,7 @@ def interpret_warning(line):
     line = line.rstrip('\n')
     m = warning_re.match(line)
     if m and m.group(2) not in allowed_warnings:
-        print >> sys.stderr, "error, forbidden warning:", m.group(2)
+        print ("error, forbidden warning: %s" %m)
 
         # If there is a warning, remove any object if it exists.
         if ofile:
@@ -76,8 +76,8 @@ def run_gcc():
     try:
         proc = subprocess.Popen(args, stderr=subprocess.PIPE)
         for line in proc.stderr:
-            print >> sys.stderr, line,
-            interpret_warning(line)
+            print ("- s %s" %line)
+            #interpret_warning(line)
 
         result = proc.wait()
     except OSError as e:
