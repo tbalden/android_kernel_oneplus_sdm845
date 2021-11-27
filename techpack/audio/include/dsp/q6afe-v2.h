@@ -224,9 +224,7 @@ enum {
 	IDX_AFE_PORT_ID_QUINARY_TDM_TX_6,
 	IDX_AFE_PORT_ID_QUINARY_TDM_RX_7,
 	IDX_AFE_PORT_ID_QUINARY_TDM_TX_7,
-//MM.Audio, 2019/07/13, add for screen record headset mic path
 	IDX_AFE_LOOPBACK_TX,
-//end add
 	AFE_MAX_PORTS
 };
 
@@ -320,6 +318,7 @@ int afe_rt_proxy_port_read(phys_addr_t buf_addr_p,
 void afe_set_cal_mode(u16 port_id, enum afe_cal_mode afe_cal_mode);
 int afe_port_start(u16 port_id, union afe_port_config *afe_config,
 	u32 rate);
+int afe_set_tws_channel_mode(u16 port_id, u32 channel_mode);
 int afe_port_start_v2(u16 port_id, union afe_port_config *afe_config,
 		      u32 rate, u16 afe_in_channels, u16 afe_in_bit_width,
 		      struct afe_enc_config *enc_config,

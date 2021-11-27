@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2018, 2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -27,6 +27,7 @@
 		((MAX_MODULES_IN_TOPO + 1) * sizeof(uint32_t))
 #define AUD_PROC_BLOCK_SIZE	4096
 #define AUD_VOL_BLOCK_SIZE	4096
+#define AUD_PROC_PERSIST_BLOCK_SIZE	(2 * 1024 * 1020)
 #define AUDIO_RX_CALIBRATION_SIZE	(AUD_PROC_BLOCK_SIZE + \
 						AUD_VOL_BLOCK_SIZE)
 enum {
@@ -38,6 +39,7 @@ enum {
 	ADM_RTAC_APR_CAL,
 	ADM_SRS_TRUMEDIA,
 	ADM_RTAC_AUDVOL_CAL,
+	ADM_LSM_AUDPROC_PERSISTENT_CAL,
 	ADM_MAX_CAL_TYPES
 };
 
@@ -185,7 +187,5 @@ int adm_programable_channel_mixer(int port_id, int copp_idx, int session_id,
 			int session_type,
 			struct msm_pcm_channel_mixer *ch_mixer,
 			int channel_index);
-//MM.Audio, 2019/07/13, add for screen record headset mic path
 void adm_set_session_type(int port_id, int session_type);
-//end add
 #endif /* __Q6_ADM_V2_H__ */
